@@ -1,0 +1,13 @@
+{
+  "name": "FileManager",
+  "category": null,
+  "title": {
+    "en_EN": "File Manager"
+  },
+  "description": {
+    "en_EN": "File Manager"
+  },
+  "files": [
+    "index.js"
+  ]
+}
