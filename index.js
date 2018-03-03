@@ -28,8 +28,6 @@
  * @licence Simplified BSD License
  */
 
-import metadata from './metadata.json';
-
 import {
   h,
   app
@@ -161,7 +159,7 @@ const state = (core, proc, win, {onselect, onactivate}) => {
 //
 // Callback for launching application
 //
-OSjs.make('osjs/packages').register(metadata, (core, args, options) => {
+OSjs.make('osjs/packages').register('FileManager', (core, args, options, metadata) => {
   const proc = core.make('osjs/application', {
     args,
     options,
