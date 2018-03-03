@@ -14,6 +14,7 @@
   ],
   "dependencies": {
     "@osjs/gui": "^3.0.0",
+    "@osjs/cli": "^3.0.0",
     "hyperapp": "^1.1.2"
   },
   "author": "Anders Evenrud <andersevenrud@gmail.com>",
