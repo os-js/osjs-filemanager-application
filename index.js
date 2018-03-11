@@ -80,7 +80,7 @@ const actions = (core, proc, win) => {
       fileview.selectedIndex = -1;
       fileview.rows = files.map(file => {
         return {
-          columns: [{label: file.filename}, file.mime, file.size],
+          columns: [{label: file.filename}, file.mime, file.humanSize],
           data: file
         }
       });
