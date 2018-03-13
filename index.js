@@ -169,10 +169,7 @@ OSjs.make('osjs/packages').register('FileManager', (core, args, options, metadat
   proc.createWindow({
     id: 'FileManager',
     title: metadata.title.en_EN,
-    state: {
-      dimension: {width: 400, height: 400},
-      position: {left: 700, top: 200}
-    }
+    dimension: {width: 400, height: 400}
   })
     .on('destroy', () => proc.destroy())
     .on('render', (win) => win.focus())
