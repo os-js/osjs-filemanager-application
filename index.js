@@ -106,7 +106,7 @@ const actions = (core, proc, win) => {
         menu: [
           {label: 'Quit', onclick: () => proc.destroy()}
         ],
-        position: ev
+        position: ev.target
       });
     },
 
