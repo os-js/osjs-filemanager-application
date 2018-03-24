@@ -85,7 +85,7 @@ const view = (bus, core, proc, win) =>
         h(Input, {
           value: state.path,
           style: {flexGrow: 1},
-          onenter: value => bus.emit('openDirectory', value)
+          onenter: value => bus.emit('openDirectory', value, 'clear')
         })
       ]),
     ]),
@@ -211,7 +211,7 @@ const createDialog = (bus, core, proc, win) => (type, item, cb) => {
 //
 const createApplication = (core, proc, win, $content) => {
   const homePath = '/'; // FIXME
-  let currentPath = '/';
+  let currentPath = '/'; // FIXME
 
   const bus = core.make('osjs/event-handler', 'FileManager');
   const dialog = createDialog(bus, core, proc, win);
@@ -252,8 +252,10 @@ const createApplication = (core, proc, win, $content) => {
       data: f
     }));
 
-    if (!history) {
+    if (typeof history === 'undefined' || history === false) {
       a.addHistory(path);
+    } else if (history ===  'clear') {
+      a.clearHistory();
     }
 
     a.setFileList({path, rows});
@@ -301,12 +303,8 @@ const createApplication = (core, proc, win, $content) => {
     });
   });
 
-  bus.on('goHome', () => {
-    a.clearHistory(),
-    bus.emit('openDirectory', homePath);
-  }); // FIXME
-
-  bus.emit('openDirectory', homePath); // FIXME
+  bus.on('goHome', () => bus.emit('openDirectory', homePath, 'clear'));
+  bus.emit('openDirectory', homePath);
 };
 
 //
