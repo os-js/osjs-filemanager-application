@@ -74,7 +74,11 @@ const view = (bus, core, proc, win) =>
         h(Button, {label: 'Back'}),
         h(Button, {label: 'Forward'}),
         h(Button, {label: 'Home'}),
-        h(Input, {value: state.path, style: {flexGrow: 1}})
+        h(Input, {
+          value: state.path,
+          style: {flexGrow: 1},
+          onenter: value => bus.emit('openDirectory', value)
+        })
       ]),
     ]),
     h(Panes, adapters.panes.proxy(state.panes, actions.panes), [
@@ -124,6 +128,7 @@ const state = (bus, core, proc, win) => ({
 
 const actions = (bus, core, proc, win) => {
   return {
+    setPath: path => state => ({path}),
     setStatus: status => state => ({status}),
     setFileList: ({path, rows}) => state => ({
       path,
@@ -143,14 +148,16 @@ const actions = (bus, core, proc, win) => {
 // Our dialog handler
 //
 const createDialog = (bus, core, proc, win) => (type, item, cb) => {
-  win.setState('loading', true);
-
   const done = (btn, value) => {
     win.setState('loading', false);
     if (btn === 'ok' || btn === 'yes') {
       cb(value);
     }
   };
+
+  if (type !== 'error') {
+    win.setState('loading', true);
+  }
 
   if (type === 'rename') {
     core.make('osjs/dialog', 'prompt', {
@@ -161,6 +168,11 @@ const createDialog = (bus, core, proc, win) => (type, item, cb) => {
     core.make('osjs/dialog', 'confirm', {
       message: `Delete ${item.filename}`
     }, done);
+  } else if (type === 'error') {
+    core.make('osjs/dialog', 'alert', {
+      type: 'error',
+      message: item
+    });
   }
 };
 
@@ -188,12 +200,21 @@ const createApplication = (core, proc, win, $content) => {
   });
 
   bus.on('openDirectory', async (file) => {
+    let files;
+
     const path = typeof file === 'undefined'
       ? currentPath
       : typeof file === 'string' ? file : file.path;
 
-    const files = await core.make('osjs/vfs')
-      .readdir(path);
+    try {
+      files = await core.make('osjs/vfs')
+        .readdir(path);
+    } catch (e) {
+      console.warn(e);
+      a.setPath(currentPath);
+      dialog('error', e);
+      return;
+    }
 
     const rows = files.map(f => ({
       columns: [{label: f.filename}, f.mime, f.humanSize],
