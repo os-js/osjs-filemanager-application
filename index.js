@@ -217,6 +217,10 @@ const createApplication = (core, proc, win, $content) => {
   });
 
   bus.on('openContextMenu', (item, index, ev) => {
+    if (['..', '.'].indexOf(item.filename) !== -1) {
+      return;
+    }
+
     const menu = [
       item.isDirectory ? {
         label: 'Go',
