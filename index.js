@@ -50,9 +50,15 @@ import {
 //
 // Our main window view
 //
-const view = (core, proc, win) =>
+const view = (bus, core, proc, win) =>
   (state, actions) => h(Box, {}, [
-    h(Menubar, {items: state.menu, onclick: (item, index, ev) => actions.menu({item, index, ev})}),
+    h(Menubar, {
+      items: [
+        {label: 'File'},
+        {label: 'View'}
+      ],
+      onclick: (item, index, ev) => bus.emit('openMenu', item, index, ev)
+    }),
     h(BoxContainer, {}, [
       h(Toolbar, {}, [
         h(Button, {label: 'Back'}),
@@ -71,89 +77,103 @@ const view = (core, proc, win) =>
   ]);
 
 //
-// Our main window action
+// Our main window state and actions
 //
-const actions = (core, proc, win) => {
+
+const state = (bus, core, proc, win) => ({
+  path: '',
+  status: '',
+
+  panes: adapters.panes.state({
+    fill: true
+  }),
+
+  mountview: adapters.listview.state({
+    class: 'osjs-gui-fill',
+    columns: ['Name'],
+    hideColumns: true,
+    rows: [
+      ['Filesystem A'],
+      ['Filesystem B']
+    ]
+  }),
+
+  fileview: adapters.listview.state({
+    onselect: file => bus.emit('selectFile', file),
+    onactivate: file => bus.emit('readFile', file),
+    columns: [{
+      label: 'Name'
+    }, {
+      label: 'Type'
+    }, {
+      label: 'Size'
+    }]
+  })
+});
+
+const actions = (bus, core, proc, win) => {
   return {
-    _readdir: ({path, files}) => (state, actions) => {
-      const fileview = state.fileview;
-      fileview.selectedIndex = -1;
-      fileview.rows = files.map(file => {
-        return {
-          columns: [{label: file.filename}, file.mime, file.humanSize],
-          data: file
-        }
-      });
-
-      const status = `${path} - ${files.length} entries`;
-
-      return {path, fileview, status};
-    },
-
-    setPath: (path = '/') => async (state, actions) => {
-      if (typeof path !== 'string') {
-        path = path.path;
-      }
-
-      const files = await core.make('osjs/vfs')
-        .readdir(path);
-
-      actions._readdir({path, files});
-    },
-
-    menu: ({item, index, ev}) => state => {
-      core.make('osjs/contextmenu').show({
-        menu: [
-          {label: 'Quit', onclick: () => proc.destroy()}
-        ],
-        position: ev.target
-      });
-    },
-
     setStatus: status => state => ({status}),
-
+    setFileList: ({path, rows}) => state => ({
+      path,
+      fileview: Object.assign({}, state.fileview, {
+        selectedIndex: -1,
+        rows
+      })
+    }),
     panes: adapters.panes.actions(),
     mountview: adapters.listview.actions(),
     fileview: adapters.listview.actions()
   }
 };
 
-const state = (core, proc, win, {onselect, onactivate}) => {
-  return {
-    path: '',
-    status: '',
+//
+// Our application bootstrapper
+//
+const createApplication = (core, proc, win, $content) => {
+  const bus = core.make('osjs/event-handler', 'FileManager');
+  const a = app(state(bus, core, proc, win),
+    actions(bus, core, proc, win),
+    view(bus, core, proc, win),
+    $content);
 
-    menu: [
-      {label: 'File'},
-      {label: 'View'}
-    ],
+  bus.on('selectFile', file => {
+    a.setStatus(`${file.filename} (${file.size}bytes)`);
+  });
 
-    panes: adapters.panes.state({
-      fill: true
-    }),
+  bus.on('readFile', file => {
+    if (file.isDirectory) {
+      bus.emit('openDirectory', file);
+    } else {
+      core.open(file);
+    }
+  });
 
-    mountview: adapters.listview.state({
-      class: 'osjs-gui-fill',
-      columns: ['Name'],
-      hideColumns: true,
-      rows: [
-        ['Filesystem A'],
-        ['Filesystem B']
-      ]
-    }),
+  bus.on('openDirectory', async (file) => {
+    const path = typeof file === 'string' ? file : file.path;
 
-    fileview: adapters.listview.state({
-      onselect,
-      onactivate,
-      columns: [{
-        label: 'Name'
-      }, {
-        label: 'Type'
-      }, {
-        label: 'Size'
-      }]
-    })
-  };
+    const files = await core.make('osjs/vfs')
+      .readdir(path);
+
+    const rows = files.map(f => ({
+      columns: [{label: f.filename}, f.mime, f.humanSize],
+      data: f
+    }));
+
+    a.setFileList({path, rows});
+    a.setStatus(`${path} - ${rows.length} entries`);
+  });
+
+  bus.on('openMenu', (item, index, ev) => {
+    core.make('osjs/contextmenu').show({
+      menu: [
+        {label: 'Quit', onclick: () => proc.destroy()}
+      ],
+      position: ev.target
+    });
+  });
+
+  bus.emit('openDirectory', '/');
 };
 
 //
@@ -173,31 +193,7 @@ OSjs.make('osjs/packages').register('FileManager', (core, args, options, metadat
   })
     .on('destroy', () => proc.destroy())
     .on('render', (win) => win.focus())
-    .render(($content, win) => {
-      let a;
-
-      const onactivate = (file) => {
-        if (file.isDirectory) {
-          a.setPath(file);
-        } else {
-          core.open(file);
-        }
-      };
-
-      const onselect = (file) => a.setStatus(`${file.filename} (${file.size}bytes)`);
-
-      a = app(
-        state(core, proc, win, {
-          onselect,
-          onactivate
-        }),
-        actions(core, proc, win),
-        view(core, proc, win),
-        $content
-      );
-
-      a.setPath('/');
-    });
+    .render(($content, win) => createApplication(core, proc, win, $content));
 
   return proc;
 });
