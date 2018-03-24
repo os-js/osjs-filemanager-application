@@ -1,4 +1,4 @@
-/*
+/*!
  * OS.js - JavaScript Cloud/Web Desktop Platform
  *
  * Copyright (c) 2011-2018, Anders Evenrud <andersevenrud@gmail.com>
@@ -46,6 +46,16 @@ import {
   Panes,
   adapters
 } from '@osjs/gui';
+
+const getFileStatus = file => `${file.filename} (${file.size}bytes)`;
+
+const getDirectoryStatus = (path, files) => {
+  const directoryCount = files.filter(f => f.isDirectory).length;
+  const fileCount = files.filter(f => !f.isDirectory).length;
+  const totalSize = files.reduce((t, f) => t + (f.size || 0), 0)
+
+  return `${directoryCount} directories, ${fileCount} files, ${totalSize} bytes total`;
+};
 
 //
 // Our main window view
@@ -167,9 +177,7 @@ const createApplication = (core, proc, win, $content) => {
     view(bus, core, proc, win),
     $content);
 
-  bus.on('selectFile', file => {
-    a.setStatus(`${file.filename} (${file.size}bytes)`);
-  });
+  bus.on('selectFile', file => a.setStatus(getFileStatus(file)));
 
   bus.on('readFile', file => {
     if (file.isDirectory) {
@@ -193,7 +201,8 @@ const createApplication = (core, proc, win, $content) => {
     }));
 
     a.setFileList({path, rows});
-    a.setStatus(`${path} - ${rows.length} entries`);
+    a.setStatus(getDirectoryStatus(path, files));
+    win.setTitle(`${proc.metadata.title.en_EN} - ${path}`)
 
     currentPath = path;
   });
