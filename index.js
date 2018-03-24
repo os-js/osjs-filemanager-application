@@ -183,10 +183,6 @@ const createDialog = (bus, core, proc, win) => (type, item, cb) => {
     }
   };
 
-  if (type !== 'error') {
-    win.setState('loading', true);
-  }
-
   if (type === 'rename') {
     core.make('osjs/dialog', 'prompt', {
       message: `Rename ${item.filename}`,
@@ -201,7 +197,11 @@ const createDialog = (bus, core, proc, win) => (type, item, cb) => {
       type: 'error',
       message: item
     });
+
+    return;
   }
+
+  win.setState('loading', true);
 };
 
 //
