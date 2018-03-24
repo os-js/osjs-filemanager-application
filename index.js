@@ -137,7 +137,6 @@ const actions = (bus, core, proc, win) => {
         rows
       })
     }),
-    refresh: () => state => ({}),
     panes: adapters.panes.actions(),
     mountview: adapters.listview.actions(),
     fileview: adapters.listview.actions()
