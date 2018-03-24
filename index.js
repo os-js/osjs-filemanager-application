@@ -136,43 +136,41 @@ const state = (bus, core, proc, win) => ({
   })
 });
 
-const actions = (bus, core, proc, win) => {
-  return {
-    addHistory: path => state => {
-      const history = state.historyIndex === -1 ? [] : state.history;
-      const lastHistory = history[history.length - 1];
-      const historyIndex = lastHistory === path
-        ? history.length - 1
-        : history.push(path) - 1;
+const actions = (bus, core, proc, win) => ({
+  addHistory: path => state => {
+    const history = state.historyIndex === -1 ? [] : state.history;
+    const lastHistory = history[history.length - 1];
+    const historyIndex = lastHistory === path
+      ? history.length - 1
+      : history.push(path) - 1;
 
-      return {history, historyIndex};
-    },
-    clearHistory: () => state => ({historyIndex: -1, history: []}),
-    setHistory: history => state => ({history}),
-    setPath: path => state => ({path}),
-    setStatus: status => state => ({status}),
-    setFileList: ({path, rows}) => state => ({
-      path,
-      fileview: Object.assign({}, state.fileview, {
-        selectedIndex: -1,
-        rows
-      })
-    }),
-    panes: adapters.panes.actions(),
-    mountview: adapters.listview.actions(),
-    fileview: adapters.listview.actions(),
-    back: () => state => {
-      const index = Math.max(0, state.historyIndex - 1);
-      bus.emit('openDirectory', state.history[index], true);
-      return {historyIndex: index};
-    },
-    forward: () => state => {
-      const index = Math.min(state.history.length - 1, state.historyIndex + 1);
-      bus.emit('openDirectory', state.history[index], true);
-      return {historyIndex: index};
-    }
+    return {history, historyIndex};
+  },
+  clearHistory: () => state => ({historyIndex: -1, history: []}),
+  setHistory: history => state => ({history}),
+  setPath: path => state => ({path}),
+  setStatus: status => state => ({status}),
+  setFileList: ({path, rows}) => state => ({
+    path,
+    fileview: Object.assign({}, state.fileview, {
+      selectedIndex: -1,
+      rows
+    })
+  }),
+  panes: adapters.panes.actions(),
+  mountview: adapters.listview.actions(),
+  fileview: adapters.listview.actions(),
+  back: () => state => {
+    const index = Math.max(0, state.historyIndex - 1);
+    bus.emit('openDirectory', state.history[index], true);
+    return {historyIndex: index};
+  },
+  forward: () => state => {
+    const index = Math.min(state.history.length - 1, state.historyIndex + 1);
+    bus.emit('openDirectory', state.history[index], true);
+    return {historyIndex: index};
   }
-};
+});
 
 //
 // Our dialog handler
