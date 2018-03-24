@@ -71,9 +71,17 @@ const view = (bus, core, proc, win) =>
     }),
     h(BoxContainer, {}, [
       h(Toolbar, {}, [
-        h(Button, {label: 'Back'}),
-        h(Button, {label: 'Forward'}),
-        h(Button, {label: 'Home'}),
+        h(Button, {
+          label: 'Back',
+          disabled: !state.history.length || state.historyIndex <= 0,
+          onclick: () => actions.back()
+        }),
+        h(Button, {
+          label: 'Forward',
+          disabled: !state.history.length || (state.historyIndex === state.history.length - 1),
+          onclick: () => actions.forward()
+        }),
+        h(Button, {label: 'Home', onclick: () => bus.emit('goHome')}),
         h(Input, {
           value: state.path,
           style: {flexGrow: 1},
@@ -97,6 +105,8 @@ const view = (bus, core, proc, win) =>
 const state = (bus, core, proc, win) => ({
   path: '',
   status: '',
+  history: [],
+  historyIndex: -1,
 
   panes: adapters.panes.state({
     fill: true
@@ -128,6 +138,17 @@ const state = (bus, core, proc, win) => ({
 
 const actions = (bus, core, proc, win) => {
   return {
+    addHistory: path => state => {
+      const history = state.historyIndex === -1 ? [] : state.history;
+      const lastHistory = history[history.length - 1];
+      const historyIndex = lastHistory === path
+        ? history.length - 1
+        : history.push(path) - 1;
+
+      return {history, historyIndex};
+    },
+    clearHistory: () => state => ({historyIndex: -1, history: []}),
+    setHistory: history => state => ({history}),
     setPath: path => state => ({path}),
     setStatus: status => state => ({status}),
     setFileList: ({path, rows}) => state => ({
@@ -139,7 +160,17 @@ const actions = (bus, core, proc, win) => {
     }),
     panes: adapters.panes.actions(),
     mountview: adapters.listview.actions(),
-    fileview: adapters.listview.actions()
+    fileview: adapters.listview.actions(),
+    back: () => state => {
+      const index = Math.max(0, state.historyIndex - 1);
+      bus.emit('openDirectory', state.history[index], true);
+      return {historyIndex: index};
+    },
+    forward: () => state => {
+      const index = Math.min(state.history.length - 1, state.historyIndex + 1);
+      bus.emit('openDirectory', state.history[index], true);
+      return {historyIndex: index};
+    }
   }
 };
 
@@ -179,6 +210,7 @@ const createDialog = (bus, core, proc, win) => (type, item, cb) => {
 // Our application bootstrapper
 //
 const createApplication = (core, proc, win, $content) => {
+  const homePath = '/'; // FIXME
   let currentPath = '/';
 
   const bus = core.make('osjs/event-handler', 'FileManager');
@@ -198,7 +230,7 @@ const createApplication = (core, proc, win, $content) => {
     }
   });
 
-  bus.on('openDirectory', async (file) => {
+  bus.on('openDirectory', async (file, history) => {
     let files;
 
     const path = typeof file === 'undefined'
@@ -219,6 +251,10 @@ const createApplication = (core, proc, win, $content) => {
       columns: [{label: f.filename}, f.mime, f.humanSize],
       data: f
     }));
+
+    if (!history) {
+      a.addHistory(path);
+    }
 
     a.setFileList({path, rows});
     a.setStatus(getDirectoryStatus(path, files));
@@ -265,7 +301,12 @@ const createApplication = (core, proc, win, $content) => {
     });
   });
 
-  bus.emit('openDirectory', currentPath);
+  bus.on('goHome', () => {
+    a.clearHistory(),
+    bus.emit('openDirectory', homePath);
+  }); // FIXME
+
+  bus.emit('openDirectory', homePath); // FIXME
 };
 
 //
