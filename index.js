@@ -99,8 +99,9 @@ const state = (bus, core, proc, win) => ({
   }),
 
   fileview: adapters.listview.state({
-    onselect: file => bus.emit('selectFile', file),
-    onactivate: file => bus.emit('readFile', file),
+    onselect: item => bus.emit('selectFile', item),
+    onactivate: item => bus.emit('readFile', item),
+    oncontextmenu: (...args) => bus.emit('openContextMenu', ...args),
     columns: [{
       label: 'Name'
     }, {
@@ -121,6 +122,7 @@ const actions = (bus, core, proc, win) => {
         rows
       })
     }),
+    refresh: () => state => ({}),
     panes: adapters.panes.actions(),
     mountview: adapters.listview.actions(),
     fileview: adapters.listview.actions()
@@ -128,10 +130,38 @@ const actions = (bus, core, proc, win) => {
 };
 
 //
+// Our dialog handler
+//
+const createDialog = (bus, core, proc, win) => (type, item, cb) => {
+  win.setState('loading', true);
+
+  const done = (btn, value) => {
+    win.setState('loading', false);
+    if (btn === 'ok' || btn === 'yes') {
+      cb(value);
+    }
+  };
+
+  if (type === 'rename') {
+    core.make('osjs/dialog', 'prompt', {
+      message: `Rename ${item.filename}`,
+      value: item.filename
+    }, done);
+  } else if (type === 'delete') {
+    core.make('osjs/dialog', 'confirm', {
+      message: `Delete ${item.filename}`
+    }, done);
+  }
+};
+
+//
 // Our application bootstrapper
 //
 const createApplication = (core, proc, win, $content) => {
+  let currentPath = '/';
+
   const bus = core.make('osjs/event-handler', 'FileManager');
+  const dialog = createDialog(bus, core, proc, win);
   const a = app(state(bus, core, proc, win),
     actions(bus, core, proc, win),
     view(bus, core, proc, win),
@@ -150,7 +180,9 @@ const createApplication = (core, proc, win, $content) => {
   });
 
   bus.on('openDirectory', async (file) => {
-    const path = typeof file === 'string' ? file : file.path;
+    const path = typeof file === 'undefined'
+      ? currentPath
+      : typeof file === 'string' ? file : file.path;
 
     const files = await core.make('osjs/vfs')
       .readdir(path);
@@ -162,6 +194,8 @@ const createApplication = (core, proc, win, $content) => {
 
     a.setFileList({path, rows});
     a.setStatus(`${path} - ${rows.length} entries`);
+
+    currentPath = path;
   });
 
   bus.on('openMenu', (item, index, ev) => {
@@ -173,7 +207,32 @@ const createApplication = (core, proc, win, $content) => {
     });
   });
 
-  bus.emit('openDirectory', '/');
+  bus.on('openContextMenu', (item, index, ev) => {
+    const menu = [
+      item.isDirectory ? {
+        label: 'Go',
+        onclick: () => bus.emit('readFile', item)
+      } : {
+        label: 'Open',
+        onclick: () => bus.emit('readFile', item)
+      },
+      {
+        label: 'Rename',
+        onclick: () => dialog('rename', item, () => bus.emit('openDirectory'))
+      },
+      {
+        label: 'Delete',
+        onclick: () => dialog('delete', item, () => bus.emit('openDirectory'))
+      }
+    ];
+
+    core.make('osjs/contextmenu').show({
+      position: ev,
+      menu
+    });
+  });
+
+  bus.emit('openDirectory', currentPath);
 };
 
 //
