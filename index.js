@@ -57,6 +57,11 @@ const getDirectoryStatus = (path, files) => {
   return `${directoryCount} directories, ${fileCount} files, ${totalSize} bytes total`;
 };
 
+const getMountpoints = core => core.make('osjs/fs').mountpoints(true).map(m => ({
+  columns: [m.label],
+  data: {name: m.name}
+}));
+
 //
 // Our main window view
 //
@@ -116,10 +121,7 @@ const state = (bus, core, proc, win) => ({
     class: 'osjs-gui-fill',
     columns: ['Name'],
     hideColumns: true,
-    rows: [
-      ['Filesystem A'],
-      ['Filesystem B']
-    ]
+    rows: getMountpoints(core)
   }),
 
   fileview: adapters.listview.state({
