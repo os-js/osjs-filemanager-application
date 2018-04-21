@@ -121,7 +121,8 @@ const state = (bus, core, proc, win) => ({
     class: 'osjs-gui-fill',
     columns: ['Name'],
     hideColumns: true,
-    rows: getMountpoints(core)
+    rows: getMountpoints(core),
+    onselect: item => bus.emit('selectMountpoint', item),
   }),
 
   fileview: adapters.listview.state({
@@ -210,8 +211,8 @@ const createDialog = (bus, core, proc, win) => (type, item, cb) => {
 // Our application bootstrapper
 //
 const createApplication = (core, proc, win, $content) => {
-  const homePath = '/'; // FIXME
-  let currentPath = '/'; // FIXME
+  const homePath = 'osjs:/'; // FIXME
+  let currentPath = homePath; // FIXME
 
   const bus = core.make('osjs/event-handler', 'FileManager');
   const dialog = createDialog(bus, core, proc, win);
@@ -221,6 +222,7 @@ const createApplication = (core, proc, win, $content) => {
     $content);
 
   bus.on('selectFile', file => a.setStatus(getFileStatus(file)));
+  bus.on('selectMountpoint', mount => bus.emit('openDirectory', `${mount.name}:/`)); //  FIXME
 
   bus.on('readFile', file => {
     if (file.isDirectory) {
