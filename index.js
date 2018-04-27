@@ -114,7 +114,6 @@ const state = (bus, core, proc, win) => ({
   historyIndex: -1,
 
   panes: adapters.panes.state({
-    fill: true
   }),
 
   mountview: adapters.listview.state({
