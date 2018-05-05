@@ -1,6 +1,6 @@
 {
   "name": "@osjs/filemanager-package",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "OS.js v3 Filemanager Package",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -13,7 +13,7 @@
     "osjs"
   ],
   "dependencies": {
-    "@osjs/gui": "^3.0.0-alpha.10",
+    "@osjs/gui": "^3.0.0-alpha.11",
     "hyperapp": "^1.2.0"
   },
   "author": "Anders Evenrud <andersevenrud@gmail.com>",
