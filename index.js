@@ -155,6 +155,7 @@ const actions = (bus, core, proc, win) => ({
   setFileList: ({path, rows}) => state => ({
     path,
     fileview: Object.assign({}, state.fileview, {
+      scrollTop: 0,
       selectedIndex: -1,
       rows
     })
@@ -234,6 +235,8 @@ const createApplication = (core, proc, win, $content) => {
   bus.on('openDirectory', async (file, history) => {
     let files;
 
+    const getFileIcon = file => core.make('osjs/fs').icon(file);
+
     const path = typeof file === 'undefined'
       ? currentPath
       : typeof file === 'string' ? file : file.path;
@@ -249,7 +252,7 @@ const createApplication = (core, proc, win, $content) => {
     }
 
     const rows = files.map(f => ({
-      columns: [{label: f.filename}, f.mime, f.humanSize],
+      columns: [{label: f.filename, icon: getFileIcon(f)}, f.mime, f.humanSize],
       data: f
     }));
 
