@@ -62,6 +62,11 @@ const getMountpoints = core => core.make('osjs/fs').mountpoints(true).map(m => (
   data: {name: m.name}
 }));
 
+const rename = (item, to) => {
+  const idx = item.path.lastIndexOf(item.filename);
+  return item.path.substr(0, idx) + to;
+};
+
 //
 // Our main window view
 //
@@ -175,10 +180,12 @@ const actions = (bus, core, proc, win) => ({
 // Our dialog handler
 //
 const createDialog = (bus, core, proc, win) => (type, item, cb) => {
-  const done = (btn, value) => {
+  cb = cb || function() {};
+
+  const done = then => (btn, value) => {
     win.setState('loading', false);
     if (btn === 'ok' || btn === 'yes') {
-      cb(value);
+      then(value);
     }
   };
 
@@ -186,11 +193,22 @@ const createDialog = (bus, core, proc, win) => (type, item, cb) => {
     core.make('osjs/dialog', 'prompt', {
       message: `Rename ${item.filename}`,
       value: item.filename
-    }, done);
+    }, done(value => {
+      if (value) {
+        const newPath = rename(item, value);
+        core.make('osjs/vfs')
+          .rename(item.path, newPath)
+          .then(() => cb());
+      }
+    }));
   } else if (type === 'delete') {
     core.make('osjs/dialog', 'confirm', {
       message: `Delete ${item.filename}`
-    }, done);
+    }, () => {
+      core.make('osjs/vfs')
+        .unlink(item.path)
+        .then(() => cb());
+    });
   } else if (type === 'error') {
     core.make('osjs/dialog', 'alert', {
       type: 'error',
@@ -322,11 +340,11 @@ const createApplication = (core, proc, win, $content) => {
       },
       {
         label: 'Rename',
-        onclick: () => dialog('rename', item, () => bus.emit('openDirectory'))
+        onclick: () => dialog('rename', item, () => refresh())
       },
       {
         label: 'Delete',
-        onclick: () => dialog('delete', item, () => bus.emit('openDirectory'))
+        onclick: () => dialog('delete', item, () => refresh())
       }
     ];
 
