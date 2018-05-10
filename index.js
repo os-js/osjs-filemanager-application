@@ -69,8 +69,8 @@ const view = (bus, core, proc, win) =>
   (state, actions) => h(Box, {}, [
     h(Menubar, {
       items: [
-        {label: 'File'},
-        {label: 'View'}
+        {label: 'File', name: 'file'},
+        {label: 'View', name: 'view'}
       ],
       onclick: (item, index, ev) => bus.emit('openMenu', item, index, ev)
     }),
@@ -94,7 +94,7 @@ const view = (bus, core, proc, win) =>
         })
       ]),
     ]),
-    h(Panes, adapters.panes.proxy(state.panes, actions.panes), [
+    h(Panes, {}, [
       h(ListView, adapters.listview.proxy(state.mountview, actions.mountview)),
       h(ListView, adapters.listview.proxy(state.fileview, actions.fileview))
     ]),
@@ -112,9 +112,6 @@ const state = (bus, core, proc, win) => ({
   status: '',
   history: [],
   historyIndex: -1,
-
-  panes: adapters.panes.state({
-  }),
 
   mountview: adapters.listview.state({
     class: 'osjs-gui-fill',
@@ -160,7 +157,6 @@ const actions = (bus, core, proc, win) => ({
       rows
     })
   }),
-  panes: adapters.panes.actions(),
   mountview: adapters.listview.actions(),
   fileview: adapters.listview.actions(),
   back: () => state => {
@@ -213,6 +209,9 @@ const createDialog = (bus, core, proc, win) => (type, item, cb) => {
 const createApplication = (core, proc, win, $content) => {
   const homePath = 'osjs:/'; // FIXME
   let currentPath = homePath; // FIXME
+  const settings = { // FIXME
+    showHiddenFiles: true
+  };
 
   const bus = core.make('osjs/event-handler', 'FileManager');
   const dialog = createDialog(bus, core, proc, win);
@@ -221,6 +220,7 @@ const createApplication = (core, proc, win, $content) => {
     view(bus, core, proc, win),
     $content);
 
+  const refresh = () => bus.emit('openDirectory', currentPath);
   bus.on('selectFile', file => a.setStatus(getFileStatus(file)));
   bus.on('selectMountpoint', mount => bus.emit('openDirectory', `${mount.name}:/`)); //  FIXME
 
@@ -249,7 +249,9 @@ const createApplication = (core, proc, win, $content) => {
 
     try {
       files = await core.make('osjs/vfs')
-        .readdir(path);
+        .readdir(path, {
+          showHiddenFiles: settings.showHiddenFiles
+        });
     } catch (e) {
       console.warn(e);
       a.setPath(currentPath);
@@ -279,8 +281,14 @@ const createApplication = (core, proc, win, $content) => {
 
   bus.on('openMenu', (item, index, ev) => {
     core.make('osjs/contextmenu').show({
-      menu: [
+      menu: item.name === 'file' ? [
         {label: 'Quit', onclick: () => proc.destroy()}
+      ] :  [
+        {label: 'Refresh', onclick: () => refresh()},
+        {label: 'Show hidden files', checked: settings.showHiddenFiles, onclick: () => {
+          settings.showHiddenFiles = !settings.showHiddenFiles;
+          refresh();
+        }}
       ],
       position: ev.target
     });
