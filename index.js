@@ -47,7 +47,7 @@ import {
   adapters
 } from '@osjs/gui';
 
-const getFileStatus = file => `${file.filename} (${file.size}bytes)`;
+const getFileStatus = file => `${file.filename} (${file.size} bytes)`;
 
 const getDirectoryStatus = (path, files) => {
   const directoryCount = files.filter(f => f.isDirectory).length;
@@ -233,13 +233,19 @@ const createApplication = (core, proc, win, $content) => {
   });
 
   bus.on('openDirectory', async (file, history) => {
-    let files;
-
-    const getFileIcon = file => core.make('osjs/fs').icon(file);
-
     const path = typeof file === 'undefined'
       ? currentPath
       : typeof file === 'string' ? file : file.path;
+
+    win.setState('loading', true);
+    const message = `Loading ${path}`;
+
+    a.setStatus(message);
+    win.setTitle(`${proc.metadata.title.en_EN} - ${message}`)
+
+    let files;
+
+    const getFileIcon = file => core.make('osjs/fs').icon(file);
 
     try {
       files = await core.make('osjs/vfs')
@@ -249,6 +255,8 @@ const createApplication = (core, proc, win, $content) => {
       a.setPath(currentPath);
       dialog('error', e);
       return;
+    } finally {
+      win.setState('loading', false);
     }
 
     const rows = files.map(f => ({
