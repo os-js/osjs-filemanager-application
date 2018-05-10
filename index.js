@@ -282,6 +282,19 @@ const createApplication = (core, proc, win, $content) => {
   bus.on('openMenu', (item, index, ev) => {
     core.make('osjs/contextmenu').show({
       menu: item.name === 'file' ? [
+        {label: 'Upload', onclick: () => {
+          const field = document.createElement('input');
+          field.type = 'file';
+          field.onchange = ev => {
+            if (field.files.length) {
+              const f = field.files[0];
+              const uploadpath = currentPath.replace(/\/?$/, '/') + f.name;
+              core.make('osjs/vfs').writefile(uploadpath, f)
+                .then(() => refresh());
+            }
+          };
+          field.click();
+        }},
         {label: 'Quit', onclick: () => proc.destroy()}
       ] :  [
         {label: 'Refresh', onclick: () => refresh()},
