@@ -250,7 +250,10 @@ const createApplication = (core, proc, win, $content) => {
     view(bus, core, proc, win),
     $content);
 
+
+  const getFileIcon = file => core.make('osjs/fs').icon(file);
   const refresh = () => bus.emit('openDirectory', currentPath);
+
   bus.on('selectFile', file => a.setStatus(getFileStatus(file)));
   bus.on('selectMountpoint', mount => bus.emit('openDirectory', `${mount.name}:/`)); //  FIXME
 
@@ -274,8 +277,6 @@ const createApplication = (core, proc, win, $content) => {
     win.setTitle(`${proc.metadata.title.en_EN} - ${message}`)
 
     let files;
-
-    const getFileIcon = file => core.make('osjs/fs').icon(file);
 
     try {
       files = await core.make('osjs/vfs')
