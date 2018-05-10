@@ -189,7 +189,19 @@ const createDialog = (bus, core, proc, win) => (type, item, cb) => {
     }
   };
 
-  if (type === 'rename') {
+  if (type === 'mkdir') {
+    core.make('osjs/dialog', 'prompt', {
+      message: `Create new directory`,
+      value: 'New directory'
+    }, done(value => {
+      if (value) {
+        const newPath = item.path.replace(/\/?$/, '/') + value;
+        core.make('osjs/vfs')
+          .mkdir(newPath)
+          .then(() => cb());
+      }
+    }));
+  } else if (type === 'rename') {
     core.make('osjs/dialog', 'prompt', {
       message: `Rename ${item.filename}`,
       value: item.filename
@@ -313,6 +325,7 @@ const createApplication = (core, proc, win, $content) => {
           };
           field.click();
         }},
+        {label: 'New directory', onclick: () => dialog('mkdir', {path: currentPath}, () => refresh())},
         {label: 'Quit', onclick: () => proc.destroy()}
       ] :  [
         {label: 'Refresh', onclick: () => refresh()},
