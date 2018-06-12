@@ -44,7 +44,7 @@ import {
   Statusbar,
   ListView,
   Panes,
-  adapters
+  listView
 } from '@osjs/gui';
 
 const getFileStatus = file => `${file.filename} (${file.size} bytes)`;
@@ -70,8 +70,11 @@ const rename = (item, to) => {
 //
 // Our main window view
 //
-const view = (bus, core, proc, win) =>
-  (state, actions) => h(Box, {}, [
+const view = (bus, core, proc, win) => (state, actions) => {
+  const FileView = listView.component(state.fileview, actions.fileview);
+  const MountView = listView.component(state.mountview, actions.mountview);
+
+  return h(Box, {}, [
     h(Menubar, {
       items: [
         {label: 'File', name: 'file'},
@@ -100,13 +103,14 @@ const view = (bus, core, proc, win) =>
       ]),
     ]),
     h(Panes, {}, [
-      h(ListView, adapters.listview.proxy(state.mountview, actions.mountview)),
-      h(ListView, adapters.listview.proxy(state.fileview, actions.fileview))
+      h(MountView),
+      h(FileView)
     ]),
     h(Statusbar, {}, [
       h('span', {}, state.status)
     ])
   ]);
+};
 
 //
 // Our main window state and actions
@@ -118,18 +122,14 @@ const state = (bus, core, proc, win) => ({
   history: [],
   historyIndex: -1,
 
-  mountview: adapters.listview.state({
+  mountview: listView.state({
     class: 'osjs-gui-fill',
     columns: ['Name'],
     hideColumns: true,
-    rows: getMountpoints(core),
-    onselect: item => bus.emit('selectMountpoint', item),
+    rows: getMountpoints(core)
   }),
 
-  fileview: adapters.listview.state({
-    onselect: item => bus.emit('selectFile', item),
-    onactivate: item => bus.emit('readFile', item),
-    oncontextmenu: (...args) => bus.emit('openContextMenu', ...args),
+  fileview: listView.state({
     columns: [{
       label: 'Name'
     }, {
@@ -154,21 +154,27 @@ const actions = (bus, core, proc, win) => ({
   setHistory: history => state => ({history}),
   setPath: path => state => ({path}),
   setStatus: status => state => ({status}),
-  setFileList: ({path, rows}) => state => ({
-    path,
-    fileview: Object.assign({}, state.fileview, {
-      scrollTop: 0,
-      selectedIndex: -1,
-      rows
-    })
+  setFileList: ({path, rows}) => (state, actions) => {
+    actions.fileview.setRows(rows);
+    return {path};
+  },
+
+  mountview: listView.actions({
+    select: ({data}) => bus.emit('selectMountpoint', data)
   }),
-  mountview: adapters.listview.actions(),
-  fileview: adapters.listview.actions(),
+
+  fileview: listView.actions({
+    select: ({data}) => bus.emit('selectFile', data),
+    activate: ({data}) => bus.emit('readFile', data),
+    contextmenu: ({data, index, ev}) => bus.emit('openContextMenu', data, index, ev),
+  }),
+
   back: () => state => {
     const index = Math.max(0, state.historyIndex - 1);
     bus.emit('openDirectory', state.history[index], true);
     return {historyIndex: index};
   },
+
   forward: () => state => {
     const index = Math.min(state.history.length - 1, state.historyIndex + 1);
     bus.emit('openDirectory', state.history[index], true);
