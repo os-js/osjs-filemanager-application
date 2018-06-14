@@ -21,5 +21,8 @@
   "bugs": {
     "url": "https://github.com/os-js/osjs-filemanager-package/issues"
   },
-  "homepage": "https://github.com/os-js/osjs-filemanager-package#readme"
+  "homepage": "https://github.com/os-js/osjs-filemanager-package#readme",
+  "osjs": {
+    "type": "package"
+  }
 }
