@@ -12,5 +12,3 @@
 # OS.js v3 File Manager Package
 
 This is the File Manager Package for OS.js v3
-
-**PLEASE NOTE THAT THIS IS AN ALPHA PRE-RELEASE AND SUBJECT TO CHANGE WITHOUT NOTICE**
