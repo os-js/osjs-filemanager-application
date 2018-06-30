@@ -35,9 +35,8 @@ import {
 
 import {
   Box,
-  BoxContainer,
   Button,
-  Input,
+  TextField,
   Toolbar,
   Menubar,
   MenubarItem,
@@ -82,25 +81,25 @@ const view = (bus, core, proc, win) => (state, actions) => {
       ],
       onclick: (item, index, ev) => bus.emit('openMenu', item, index, ev)
     }),
-    h(BoxContainer, {}, [
-      h(Toolbar, {}, [
-        h(Button, {
-          label: 'Back',
-          disabled: !state.history.length || state.historyIndex <= 0,
-          onclick: () => actions.back()
-        }),
-        h(Button, {
-          label: 'Forward',
-          disabled: !state.history.length || (state.historyIndex === state.history.length - 1),
-          onclick: () => actions.forward()
-        }),
-        h(Button, {label: 'Home', onclick: () => bus.emit('goHome')}),
-        h(Input, {
-          value: state.path,
-          style: {flexGrow: 1},
-          onenter: value => bus.emit('openDirectory', value, 'clear')
-        })
-      ]),
+    h(Toolbar, {}, [
+      h(Button, {
+        label: 'Back',
+        disabled: !state.history.length || state.historyIndex <= 0,
+        onclick: () => actions.back()
+      }),
+      h(Button, {
+        label: 'Forward',
+        disabled: !state.history.length || (state.historyIndex === state.history.length - 1),
+        onclick: () => actions.forward()
+      }),
+      h(Button, {label: 'Home', onclick: () => bus.emit('goHome')}),
+      h(TextField, {
+        value: state.path,
+        box: {
+          grow: 1
+        },
+        onenter: (ev, value) => bus.emit('openDirectory', value, 'clear')
+      })
     ]),
     h(Panes, {}, [
       h(MountView),
