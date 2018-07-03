@@ -74,13 +74,14 @@ const view = (bus, core, proc, win) => (state, actions) => {
   const MountView = listView.component(state.mountview, actions.mountview);
 
   return h(Box, {}, [
-    h(Menubar, {
-      items: [
-        {label: 'File', name: 'file'},
-        {label: 'View', name: 'view'}
-      ],
-      onclick: (item, index, ev) => bus.emit('openMenu', item, index, ev)
-    }),
+    h(Menubar, {}, [
+      h(MenubarItem, {
+        onclick: ev => bus.emit('openMenu', ev, {name: 'file'})
+      }, 'File'),
+      h(MenubarItem, {
+        onclick: ev => bus.emit('openMenu', ev, {name: 'view'})
+      }, 'View')
+    ]),
     h(Toolbar, {}, [
       h(Button, {
         label: 'Back',
@@ -315,7 +316,7 @@ const createApplication = (core, proc, win, $content) => {
     currentPath = path;
   });
 
-  bus.on('openMenu', (item, index, ev) => {
+  bus.on('openMenu', (ev, item) => {
     core.make('osjs/contextmenu').show({
       menu: item.name === 'file' ? [
         {label: 'Upload', onclick: () => {
