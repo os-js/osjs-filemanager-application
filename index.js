@@ -99,7 +99,7 @@ const view = (bus, core, proc, win) => (state, actions) => {
         box: {
           grow: 1
         },
-        onenter: (ev, value) => bus.emit('openDirectory', value, 'clear')
+        onenter: (ev, value) => bus.emit('openDirectory', {path: value}, 'clear')
       })
     ]),
     h(Panes, {}, [
@@ -231,7 +231,7 @@ const createDialog = (bus, core, proc, win) => (type, item, cb) => {
     core.make('osjs/dialog', 'alert', {
       type: 'error',
       message: item
-    });
+    }, () => {});
 
     return;
   }
@@ -243,7 +243,7 @@ const createDialog = (bus, core, proc, win) => (type, item, cb) => {
 // Our application bootstrapper
 //
 const createApplication = (core, proc, win, $content) => {
-  const homePath = 'osjs:/'; // FIXME
+  const homePath = {path: 'osjs:/'}; // FIXME
   let currentPath = homePath; // FIXME
   const settings = { // FIXME
     showHiddenFiles: true
@@ -261,7 +261,7 @@ const createApplication = (core, proc, win, $content) => {
   const refresh = () => bus.emit('openDirectory', currentPath);
 
   bus.on('selectFile', file => a.setStatus(getFileStatus(file)));
-  bus.on('selectMountpoint', mount => bus.emit('openDirectory', `${mount.name}:/`)); //  FIXME
+  bus.on('selectMountpoint', mount => bus.emit('openDirectory', {path: `${mount.name}:/`})); //  FIXME
 
   bus.on('readFile', file => {
     if (file.isDirectory) {
@@ -272,9 +272,7 @@ const createApplication = (core, proc, win, $content) => {
   });
 
   bus.on('openDirectory', async (file, history) => {
-    const path = typeof file === 'undefined'
-      ? currentPath
-      : typeof file === 'string' ? file : file.path;
+    const {path} = file;
 
     win.setState('loading', true);
     const message = `Loading ${path}`;
@@ -286,7 +284,7 @@ const createApplication = (core, proc, win, $content) => {
 
     try {
       files = await core.make('osjs/vfs')
-        .readdir(path, {
+        .readdir(file, {
           showHiddenFiles: settings.showHiddenFiles
         });
     } catch (e) {
@@ -304,7 +302,7 @@ const createApplication = (core, proc, win, $content) => {
     }));
 
     if (typeof history === 'undefined' || history === false) {
-      a.addHistory(path);
+      a.addHistory(file);
     } else if (history ===  'clear') {
       a.clearHistory();
     }
@@ -313,7 +311,7 @@ const createApplication = (core, proc, win, $content) => {
     a.setStatus(getDirectoryStatus(path, files));
     win.setTitle(`${proc.metadata.title.en_EN} - ${path}`)
 
-    currentPath = path;
+    currentPath = file;
   });
 
   bus.on('openMenu', (ev, item) => {
@@ -325,14 +323,14 @@ const createApplication = (core, proc, win, $content) => {
           field.onchange = ev => {
             if (field.files.length) {
               const f = field.files[0];
-              const uploadpath = currentPath.replace(/\/?$/, '/') + f.name;
+              const uploadpath = currentPath.path.replace(/\/?$/, '/') + f.name;
               core.make('osjs/vfs').writefile(uploadpath, f)
                 .then(() => refresh());
             }
           };
           field.click();
         }},
-        {label: 'New directory', onclick: () => dialog('mkdir', {path: currentPath}, () => refresh())},
+        {label: 'New directory', onclick: () => dialog('mkdir', {path: currentPath.path}, () => refresh())},
         {label: 'Quit', onclick: () => proc.destroy()}
       ] :  [
         {label: 'Refresh', onclick: () => refresh()},
