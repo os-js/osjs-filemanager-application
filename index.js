@@ -203,7 +203,7 @@ const createDialog = (bus, core, proc, win) => (type, item, cb) => {
       if (value) {
         const newPath = item.path.replace(/\/?$/, '/') + value;
         core.make('osjs/vfs')
-          .mkdir(newPath)
+          .mkdir({path: newPath})
           .then(() => cb());
       }
     }));
@@ -215,7 +215,7 @@ const createDialog = (bus, core, proc, win) => (type, item, cb) => {
       if (value) {
         const newPath = rename(item, value);
         core.make('osjs/vfs')
-          .rename(item.path, newPath)
+          .rename(item, {path: newPath})
           .then(() => cb());
       }
     }));
@@ -224,14 +224,14 @@ const createDialog = (bus, core, proc, win) => (type, item, cb) => {
       message: `Delete ${item.filename}`
     }, () => {
       core.make('osjs/vfs')
-        .unlink(item.path)
+        .unlink(item)
         .then(() => cb());
     });
   } else if (type === 'error') {
     core.make('osjs/dialog', 'alert', {
       type: 'error',
       message: item
-    }, () => {});
+    }, done(() => {}));
 
     return;
   }
@@ -324,7 +324,7 @@ const createApplication = (core, proc, win, $content) => {
             if (field.files.length) {
               const f = field.files[0];
               const uploadpath = currentPath.path.replace(/\/?$/, '/') + f.name;
-              core.make('osjs/vfs').writefile(uploadpath, f)
+              core.make('osjs/vfs').writefile({path: uploadpath}, f)
                 .then(() => refresh());
             }
           };
