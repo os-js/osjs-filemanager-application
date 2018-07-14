@@ -1,6 +1,7 @@
 {
   "name": "FileManager",
   "category": "utilities",
+  "icon": "icon.png",
   "title": {
     "en_EN": "File Manager"
   },

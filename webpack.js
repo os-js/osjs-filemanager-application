@@ -33,6 +33,9 @@ const metadata = require('./metadata.json');
 
 module.exports = (options, {createWebpack}) => createWebpack(__dirname, {
   outputPath: path.resolve(options.dist.packages, metadata.name),
+  copy: [
+    path.resolve(__dirname, 'icon.png')
+  ],
   entry: {
     index: [
       path.resolve(__dirname, 'index.js')
