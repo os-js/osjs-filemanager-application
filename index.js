@@ -366,6 +366,13 @@ const createApplication = (core, proc, win, $content) => {
       }
     ];
 
+    if (!item.isDirectory) {
+      menu.push({
+        label: 'Download',
+        onclick: () => core.make('osjs/vfs').download(item)
+      });
+    }
+
     core.make('osjs/contextmenu').show({
       position: ev,
       menu
