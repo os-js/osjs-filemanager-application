@@ -3,7 +3,8 @@
   "version": "1.0.7",
   "description": "OS.js v3 Filemanager Package",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "eslint": "eslint *.js"
   },
   "repository": {
     "type": "git",
@@ -24,5 +25,8 @@
   "homepage": "https://github.com/os-js/osjs-filemanager-package#readme",
   "osjs": {
     "type": "package"
+  },
+  "devDependencies": {
+    "eslint": "^5.1.0"
   }
 }
