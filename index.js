@@ -56,8 +56,11 @@ const getDirectoryStatus = (path, files) => {
 };
 
 const getMountpoints = core => core.make('osjs/fs').mountpoints(true).map(m => ({
-  columns: [m.label],
-  data: {name: m.name}
+  columns: [{
+    icon: m.icon,
+    label: m.label
+  }],
+  data: m
 }));
 
 const rename = (item, to) => {
@@ -260,7 +263,7 @@ const createApplication = (core, proc, win, $content) => {
   const refresh = () => bus.emit('openDirectory', currentPath);
 
   bus.on('selectFile', file => a.setStatus(getFileStatus(file)));
-  bus.on('selectMountpoint', mount => bus.emit('openDirectory', {path: `${mount.name}:/`})); //  FIXME
+  bus.on('selectMountpoint', mount => bus.emit('openDirectory', {path: mount.root}));
 
   bus.on('readFile', file => {
     if (file.isDirectory) {
