@@ -259,7 +259,7 @@ const createApplication = (core, proc, win, $content) => {
     $content);
 
 
-  const getFileIcon = file => core.make('osjs/fs').icon(file);
+  const getFileIcon = file => file.icon || core.make('osjs/fs').icon(file);
   const refresh = () => bus.emit('openDirectory', currentPath);
 
   bus.on('selectFile', file => a.setStatus(getFileStatus(file)));
