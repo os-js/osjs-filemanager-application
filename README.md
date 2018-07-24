@@ -9,6 +9,14 @@
 [![Donate](https://img.shields.io/badge/paypal-donate-yellow.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=andersevenrud%40gmail%2ecom&lc=NO&currency_code=USD&bn=PP%2dDonationsBF%3abtn_donate_SM%2egif%3aNonHosted)
 [![Support](https://img.shields.io/badge/patreon-support-orange.svg)](https://www.patreon.com/user?u=2978551&ty=h&u=2978551)
 
-# OS.js v3 File Manager Package
+# OS.js v3 File Manager Application
 
-This is the File Manager Package for OS.js v3
+This is the File Manager Application for OS.js v3
+
+## Installation
+
+```bash
+npm install --save @osjs/filemanager-application
+npm run package:discover
+npm run build:manifest
+```
