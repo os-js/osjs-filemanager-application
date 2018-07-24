@@ -1,22 +1,26 @@
 {
-  "name": "@osjs/filemanager-package",
+  "name": "@osjs/filemanager-application",
   "version": "1.0.9",
-  "description": "OS.js v3 Filemanager Package",
+  "description": "OS.js v3 Filemanager Application",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "eslint": "eslint *.js"
+    "eslint": "eslint *.js",
+    "build": "webpack",
+    "watch": "webpack --watch",
+    "prepublishOnly": "npm run eslint && rm ./dist/* && npm run build"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/os-js/osjs-filemanager-package.git"
   },
+  "files": [
+    "dist/",
+    "metadata.json"
+  ],
   "keywords": [
     "osjs"
   ],
-  "dependencies": {
-    "@osjs/gui": "^3.0.0-alpha.28",
-    "hyperapp": "^1.2.0"
-  },
+  "dependencies": {},
   "author": "Anders Evenrud <andersevenrud@gmail.com>",
   "license": "BSD-2-Clause",
   "bugs": {
@@ -27,6 +31,16 @@
     "type": "package"
   },
   "devDependencies": {
-    "eslint": "^5.1.0"
+    "@babel/core": "^7.0.0-beta.54",
+    "@babel/plugin-transform-runtime": "^7.0.0-beta.54",
+    "@babel/preset-env": "^7.0.0-beta.54",
+    "@babel/runtime": "^7.0.0-beta.54",
+    "@osjs/gui": "^3.0.0-alpha.30",
+    "babel-loader": "^8.0.0-beta.4",
+    "copy-webpack-plugin": "^4.5.2",
+    "eslint": "^5.1.0",
+    "hyperapp": "^1.2.0",
+    "webpack": "^4.16.2",
+    "webpack-cli": "^3.1.0"
   }
 }
