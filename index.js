@@ -262,6 +262,11 @@ const createApplication = (core, proc, win, $content) => {
   const getFileIcon = file => file.icon || core.make('osjs/fs').icon(file);
   const refresh = () => bus.emit('openDirectory', currentPath);
 
+  const upload = f => {
+    const uploadpath = currentPath.path.replace(/\/?$/, '/') + f.name;
+    return core.make('osjs/vfs').writefile({path: uploadpath}, f);
+  };
+
   bus.on('selectFile', file => a.setStatus(getFileStatus(file)));
   bus.on('selectMountpoint', mount => bus.emit('openDirectory', {path: mount.root}));
 
@@ -324,9 +329,7 @@ const createApplication = (core, proc, win, $content) => {
           field.type = 'file';
           field.onchange = ev => {
             if (field.files.length) {
-              const f = field.files[0];
-              const uploadpath = currentPath.path.replace(/\/?$/, '/') + f.name;
-              core.make('osjs/vfs').writefile({path: uploadpath}, f)
+              upload(field.files[0])
                 .then(() => refresh());
             }
           };
@@ -379,6 +382,13 @@ const createApplication = (core, proc, win, $content) => {
       position: ev,
       menu
     });
+  });
+
+  win.on('drop', (w, ev, data, files) => {
+    if (files.length) {
+      Promise.all(files.map(upload))
+        .then(() => refresh());
+    }
   });
 
   bus.on('goHome', () => bus.emit('openDirectory', homePath, 'clear'));
