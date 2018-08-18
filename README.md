@@ -13,6 +13,8 @@
 
 This is the File Manager Application for OS.js v3
 
+![Screenshot](https://raw.githubusercontent.com/os-js/osjs-filemanager-application/master/screenshot.png)
+
 ## Installation
 
 ```bash
