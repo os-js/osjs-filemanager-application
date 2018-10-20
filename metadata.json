@@ -3,10 +3,12 @@
   "category": "utilities",
   "icon": "icon.png",
   "title": {
-    "en_EN": "File Manager"
+    "en_EN": "File Manager",
+    "fr_FR": "Gestionnaire de fichiers"
   },
   "description": {
-    "en_EN": "File Manager"
+    "en_EN": "File Manager",
+    "fr_FR": "Gestionnaire de fichiers"
   },
   "files": [
     "main.js"
