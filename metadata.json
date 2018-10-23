@@ -4,10 +4,12 @@
   "icon": "icon.png",
   "title": {
     "en_EN": "File Manager",
+    "nb_NO": "Filbehandler",
     "fr_FR": "Gestionnaire de fichiers"
   },
   "description": {
     "en_EN": "File Manager",
+    "nb_NO": "Behandle filer",
     "fr_FR": "Gestionnaire de fichiers"
   },
   "files": [
