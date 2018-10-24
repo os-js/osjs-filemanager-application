@@ -5,12 +5,14 @@
   "title": {
     "en_EN": "File Manager",
     "nb_NO": "Filbehandler",
-    "fr_FR": "Gestionnaire de fichiers"
+    "fr_FR": "Gestionnaire de fichiers",
+    "de_DE": "Dateimanager"
   },
   "description": {
     "en_EN": "File Manager",
     "nb_NO": "Behandle filer",
-    "fr_FR": "Gestionnaire de fichiers"
+    "fr_FR": "Gestionnaire de fichiers",
+    "de_DE": "Dateimanager"
   },
   "files": [
     "main.js"
