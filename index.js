@@ -71,47 +71,51 @@ const rename = (item, to) => {
 //
 // Our main window view
 //
-const view = (bus, core, proc, win) => (state, actions) => {
-  const FileView = listView.component(state.fileview, actions.fileview);
-  const MountView = listView.component(state.mountview, actions.mountview);
+const view = (bus, core, proc, win) => {
+  const {draggable} = core.make('osjs/dnd');
 
-  return h(Box, {}, [
-    h(Menubar, {}, [
-      h(MenubarItem, {
-        onclick: ev => bus.emit('openMenu', ev, {name: 'file'})
-      }, 'File'),
-      h(MenubarItem, {
-        onclick: ev => bus.emit('openMenu', ev, {name: 'view'})
-      }, 'View')
-    ]),
-    h(Toolbar, {}, [
-      h(Button, {
-        label: 'Back',
-        disabled: !state.history.length || state.historyIndex <= 0,
-        onclick: () => actions.back()
-      }),
-      h(Button, {
-        label: 'Forward',
-        disabled: !state.history.length || (state.historyIndex === state.history.length - 1),
-        onclick: () => actions.forward()
-      }),
-      h(Button, {label: 'Home', onclick: () => bus.emit('goHome')}),
-      h(TextField, {
-        value: state.path,
-        box: {
-          grow: 1
-        },
-        onenter: (ev, value) => bus.emit('openDirectory', {path: value}, 'clear')
-      })
-    ]),
-    h(Panes, {}, [
-      h(MountView),
-      h(FileView)
-    ]),
-    h(Statusbar, {}, [
-      h('span', {}, state.status)
-    ])
-  ]);
+  return (state, actions) => {
+    const FileView = listView.component(state.fileview, actions.fileview);
+    const MountView = listView.component(state.mountview, actions.mountview);
+
+    return h(Box, {}, [
+      h(Menubar, {}, [
+        h(MenubarItem, {
+          onclick: ev => bus.emit('openMenu', ev, {name: 'file'})
+        }, 'File'),
+        h(MenubarItem, {
+          onclick: ev => bus.emit('openMenu', ev, {name: 'view'})
+        }, 'View')
+      ]),
+      h(Toolbar, {}, [
+        h(Button, {
+          label: 'Back',
+          disabled: !state.history.length || state.historyIndex <= 0,
+          onclick: () => actions.back()
+        }),
+        h(Button, {
+          label: 'Forward',
+          disabled: !state.history.length || (state.historyIndex === state.history.length - 1),
+          onclick: () => actions.forward()
+        }),
+        h(Button, {label: 'Home', onclick: () => bus.emit('goHome')}),
+        h(TextField, {
+          value: state.path,
+          box: {
+            grow: 1
+          },
+          onenter: (ev, value) => bus.emit('openDirectory', {path: value}, 'clear')
+        })
+      ]),
+      h(Panes, {}, [
+        h(MountView),
+        h(FileView)
+      ]),
+      h(Statusbar, {}, [
+        h('span', {}, state.status)
+      ])
+    ]);
+  };
 };
 
 //
@@ -168,6 +172,11 @@ const actions = (bus, core, proc, win) => ({
   fileview: listView.actions({
     select: ({data}) => bus.emit('selectFile', data),
     activate: ({data}) => bus.emit('readFile', data),
+    created: ({el, data}) => {
+      if (data.isFile) {
+        core.make('osjs/dnd').draggable(el, {data});
+      }
+    },
     contextmenu: ({data, index, ev}) => bus.emit('openContextMenu', data, index, ev),
   }),
 
