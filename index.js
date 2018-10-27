@@ -43,7 +43,7 @@ import {
   Statusbar,
   Panes,
   listView
-} from '@osjs/gui/index.js';
+} from '@osjs/gui';
 
 const getFileStatus = file => `${file.filename} (${file.size} bytes)`;
 
