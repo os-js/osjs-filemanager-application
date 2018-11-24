@@ -266,7 +266,7 @@ const createApplication = (core, proc, win, $content) => {
 
 
   const getFileIcon = file => file.icon || core.make('osjs/fs').icon(file);
-  const refresh = () => bus.emit('openDirectory', currentPath);
+  const refresh = (currentFile) => bus.emit('openDirectory', currentPath, null, currentFile);
 
   const upload = f => {
     const uploadpath = currentPath.path.replace(/\/?$/, '/') + f.name;
@@ -284,7 +284,7 @@ const createApplication = (core, proc, win, $content) => {
     }
   });
 
-  bus.on('openDirectory', async (file, history) => {
+  bus.on('openDirectory', async (file, history, select) => {
     const {path} = file;
 
     win.setState('loading', true);
@@ -322,6 +322,14 @@ const createApplication = (core, proc, win, $content) => {
 
     a.setFileList({path, rows});
     a.setStatus(getDirectoryStatus(path, files));
+
+    if (select) {
+      const foundIndex = files.findIndex(file => file.filename === select);
+      if (foundIndex !== -1) {
+        a.fileview.setSelectedIndex(foundIndex);
+      }
+    }
+
     win.setTitle(`${proc.metadata.title.en_EN} - ${path}`);
 
     currentPath = file;
@@ -336,7 +344,7 @@ const createApplication = (core, proc, win, $content) => {
           field.onchange = ev => {
             if (field.files.length) {
               upload(field.files[0])
-                .then(() => refresh())
+                .then(() => refresh(field.files[0].name))
                 .catch(error => dialog('error', {error, message: 'Failed to upload file(s)'}));
             }
           };
@@ -394,7 +402,7 @@ const createApplication = (core, proc, win, $content) => {
   win.on('drop', (w, ev, data, files) => {
     if (files.length) {
       Promise.all(files.map(upload))
-        .then(() => refresh())
+        .then(() => refresh(files[0].name)) // FIXME: Select all ?
         .catch(error => dialog('error', {error, message: 'Failed to upload file(s)'}));
     }
   });
