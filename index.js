@@ -237,7 +237,8 @@ const createDialog = (bus, core, proc, win) => (type, item, cb) => {
   } else if (type === 'error') {
     core.make('osjs/dialog', 'alert', {
       type: 'error',
-      message: item
+      error: item.error,
+      message: item.message
     }, done(() => {}));
 
     return;
@@ -250,7 +251,7 @@ const createDialog = (bus, core, proc, win) => (type, item, cb) => {
 // Our application bootstrapper
 //
 const createApplication = (core, proc, win, $content) => {
-  const homePath = {path: 'osjs:/'}; // FIXME
+  const homePath = {path: 'home:/'}; // FIXME
   let currentPath = homePath; // FIXME
   const settings = { // FIXME
     showHiddenFiles: true
@@ -302,7 +303,7 @@ const createApplication = (core, proc, win, $content) => {
     } catch (e) {
       console.warn(e);
       a.setPath(currentPath);
-      dialog('error', e);
+      dialog('error', {error: e, message: 'Failed to open directory'});
       return;
     } finally {
       win.setState('loading', false);
@@ -335,7 +336,8 @@ const createApplication = (core, proc, win, $content) => {
           field.onchange = ev => {
             if (field.files.length) {
               upload(field.files[0])
-                .then(() => refresh());
+                .then(() => refresh())
+                .catch(error => dialog('error', {error, message: 'Failed to upload file(s)'}));
             }
           };
           field.click();
@@ -392,7 +394,8 @@ const createApplication = (core, proc, win, $content) => {
   win.on('drop', (w, ev, data, files) => {
     if (files.length) {
       Promise.all(files.map(upload))
-        .then(() => refresh());
+        .then(() => refresh())
+        .catch(error => dialog('error', {error, message: 'Failed to upload file(s)'}));
     }
   });
 
