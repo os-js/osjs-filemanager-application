@@ -12,7 +12,6 @@
     "ArrayBuffer": true,
     "File": true,
     "Blob": true,
-    "OSjs": true,
     "OSJS_VERSION": true
   },
   "extends": "eslint:recommended",

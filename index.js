@@ -28,6 +28,8 @@
  * @licence Simplified BSD License
  */
 
+import osjs from 'osjs';
+
 import {
   h,
   app
@@ -414,7 +416,7 @@ const createApplication = (core, proc, win, $content) => {
 //
 // Callback for launching application
 //
-OSjs.make('osjs/packages').register('FileManager', (core, args, options, metadata) => {
+osjs.register('FileManager', (core, args, options, metadata) => {
   const proc = core.make('osjs/application', {
     args,
     options,
