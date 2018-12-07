@@ -18,6 +18,6 @@ This is the File Manager Application for OS.js v3
 ## Installation
 
 ```bash
-npm install --save @osjs/filemanager-application
+npm install --save --production @osjs/filemanager-application
 npm run package:discover
 ```
