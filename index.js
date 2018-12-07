@@ -304,7 +304,7 @@ const createApplication = (core, proc, win, $content) => {
         });
     } catch (e) {
       console.warn(e);
-      a.setPath(currentPath);
+      a.setPath(typeof currentPath === 'string' ? currentPath : currentPath.path);
       dialog('error', {error: e, message: 'Failed to open directory'});
       return;
     } finally {
