@@ -30,6 +30,10 @@
 
 import osjs from 'osjs';
 
+import * as translations from './locales.js';
+
+import {name as applicationName} from './metadata.json';
+
 import {
   h,
   app
@@ -77,31 +81,32 @@ const view = (bus, core, proc, win) => (state, actions) => {
   const FileView = listView.component(state.fileview, actions.fileview);
   const MountView = listView.component(state.mountview, actions.mountview);
   const {icon} = core.make('osjs/theme');
+  const _ = core.make('osjs/locale').translate;
 
   return h(Box, {}, [
     h(Menubar, {}, [
       h(MenubarItem, {
         onclick: ev => bus.emit('openMenu', ev, {name: 'file'})
-      }, 'File'),
+      }, _('LBL_FILE')),
       h(MenubarItem, {
         onclick: ev => bus.emit('openMenu', ev, {name: 'view'})
-      }, 'View')
+      }, _('LBL_VIEW'))
     ]),
     h(Toolbar, {}, [
       h(Button, {
-        title: 'Back',
+        title: _('LBL_BACK'),
         icon: icon('go-previous'),
         disabled: !state.history.length || state.historyIndex <= 0,
         onclick: () => actions.back()
       }),
       h(Button, {
-        title: 'Forward',
+        title: _('LBL_FORWARD'),
         icon: icon('go-next'),
         disabled: !state.history.length || (state.historyIndex === state.history.length - 1),
         onclick: () => actions.forward()
       }),
       h(Button, {
-        title: 'Home',
+        title: _('LBL_HOME'),
         icon: icon('go-home'),
         onclick: () => bus.emit('goHome')
       }),
@@ -267,6 +272,9 @@ const createApplication = (core, proc, win, $content) => {
     showHiddenFiles: true
   };
 
+  const title = core.make('osjs/locale')
+    .translatableFlat(proc.metadata.title);
+
   const bus = core.make('osjs/event-handler', 'FileManager');
   const dialog = createDialog(bus, core, proc, win);
   const a = app(state(bus, core, proc, win),
@@ -301,7 +309,7 @@ const createApplication = (core, proc, win, $content) => {
     const message = `Loading ${path}`;
 
     a.setStatus(message);
-    win.setTitle(`${proc.metadata.title.en_EN} - ${message}`);
+    win.setTitle(`${title} - ${message}`);
 
     let files;
 
@@ -340,15 +348,18 @@ const createApplication = (core, proc, win, $content) => {
       }
     }
 
-    win.setTitle(`${proc.metadata.title.en_EN} - ${path}`);
+    win.setTitle(`${title} - ${path}`);
 
     currentPath = file;
   });
 
   bus.on('openMenu', (ev, item) => {
+    const _ = core.make('osjs/locale').translate;
+    const __ = core.make('osjs/locale').translatable(translations);
+
     core.make('osjs/contextmenu').show({
       menu: item.name === 'file' ? [
-        {label: 'Upload', onclick: () => {
+        {label: _('LBL_UPLOAD'), onclick: () => {
           const field = document.createElement('input');
           field.type = 'file';
           field.onchange = ev => {
@@ -360,11 +371,11 @@ const createApplication = (core, proc, win, $content) => {
           };
           field.click();
         }},
-        {label: 'New directory', onclick: () => dialog('mkdir', {path: currentPath.path}, () => refresh())},
-        {label: 'Quit', onclick: () => proc.destroy()}
+        {label: _('LBL_MKDIR'), onclick: () => dialog('mkdir', {path: currentPath.path}, () => refresh())},
+        {label: _('LBL_QUIT'), onclick: () => proc.destroy()}
       ] :  [
-        {label: 'Refresh', onclick: () => refresh()},
-        {label: 'Show hidden files', checked: settings.showHiddenFiles, onclick: () => {
+        {label: _('LBL_REFRESH'), onclick: () => refresh()},
+        {label: __('LBL_SHOW_HIDDEN_FILES'), checked: settings.showHiddenFiles, onclick: () => {
           settings.showHiddenFiles = !settings.showHiddenFiles;
           refresh();
         }}
@@ -378,27 +389,29 @@ const createApplication = (core, proc, win, $content) => {
       return;
     }
 
+    const _ = core.make('osjs/locale').translate;
+
     const menu = [
       item.isDirectory ? {
-        label: 'Go',
+        label: _('LBL_GO'),
         onclick: () => bus.emit('readFile', item)
       } : {
-        label: 'Open',
+        label: _('LBL_OPEN'),
         onclick: () => bus.emit('readFile', item)
       },
       {
-        label: 'Rename',
+        label: _('LBL_RENAME'),
         onclick: () => dialog('rename', item, () => refresh())
       },
       {
-        label: 'Delete',
+        label: _('LBL_DELETE'),
         onclick: () => dialog('delete', item, () => refresh())
       }
     ];
 
     if (!item.isDirectory) {
       menu.push({
-        label: 'Download',
+        label: _('LBL_DOWNLOAD'),
         onclick: () => core.make('osjs/vfs').download(item)
       });
     }
@@ -424,16 +437,19 @@ const createApplication = (core, proc, win, $content) => {
 //
 // Callback for launching application
 //
-osjs.register('FileManager', (core, args, options, metadata) => {
+osjs.register(applicationName, (core, args, options, metadata) => {
   const proc = core.make('osjs/application', {
     args,
     options,
     metadata
   });
 
+  const title = core.make('osjs/locale')
+    .translatableFlat(metadata.title);
+
   proc.createWindow({
     id: 'FileManager',
-    title: metadata.title.en_EN,
+    title,
     icon: proc.resource(metadata.icon),
     dimension: {width: 400, height: 400}
   })
