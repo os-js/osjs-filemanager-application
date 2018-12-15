@@ -76,6 +76,7 @@ const rename = (item, to) => {
 const view = (bus, core, proc, win) => (state, actions) => {
   const FileView = listView.component(state.fileview, actions.fileview);
   const MountView = listView.component(state.mountview, actions.mountview);
+  const {icon} = core.make('osjs/theme');
 
   return h(Box, {}, [
     h(Menubar, {}, [
@@ -88,20 +89,27 @@ const view = (bus, core, proc, win) => (state, actions) => {
     ]),
     h(Toolbar, {}, [
       h(Button, {
-        label: 'Back',
+        title: 'Back',
+        icon: icon('go-previous'),
         disabled: !state.history.length || state.historyIndex <= 0,
         onclick: () => actions.back()
       }),
       h(Button, {
-        label: 'Forward',
+        title: 'Forward',
+        icon: icon('go-next'),
         disabled: !state.history.length || (state.historyIndex === state.history.length - 1),
         onclick: () => actions.forward()
       }),
-      h(Button, {label: 'Home', onclick: () => bus.emit('goHome')}),
+      h(Button, {
+        title: 'Home',
+        icon: icon('go-home'),
+        onclick: () => bus.emit('goHome')
+      }),
       h(TextField, {
         value: state.path,
         box: {
-          grow: 1
+          grow: 1,
+          shrink: 1
         },
         onenter: (ev, value) => bus.emit('openDirectory', {path: value}, 'clear')
       })
