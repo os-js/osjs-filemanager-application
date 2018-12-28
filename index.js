@@ -28,6 +28,7 @@
  * @licence Simplified BSD License
  */
 
+import './index.scss';
 import osjs from 'osjs';
 
 import * as translations from './locales.js';
@@ -89,7 +90,9 @@ const view = (bus, core, proc, win) => (state, actions) => {
   const {icon} = core.make('osjs/theme');
   const _ = core.make('osjs/locale').translate;
 
-  return h(Box, {}, [
+  return h(Box, {
+    class: state.minimalistic ? 'osjs-filemanager-minimalistic' : ''
+  }, [
     h(Menubar, {}, [
       h(MenubarItem, {
         onclick: ev => bus.emit('openMenu', ev, state, actions, {name: 'file'})
@@ -300,7 +303,6 @@ const createApplication = (core, proc, win, $content) => {
     view(bus, core, proc, win),
     $content);
 
-
   const getFileIcon = file => file.icon || core.make('osjs/fs').icon(file);
   const refresh = (currentFile) => bus.emit('openDirectory', currentPath, null, currentFile);
 
@@ -396,11 +398,9 @@ const createApplication = (core, proc, win, $content) => {
 
       view: [
         {label: _('LBL_REFRESH'), onclick: () => refresh()},
-        /*
         {label: __('LBL_MINIMALISTIC'), checked: state.minimalistic, onclick: () => {
           actions.setMinimalistic(!state.minimalistic);
         }},
-        */
         {label: __('LBL_SHOW_HIDDEN_FILES'), checked: settings.showHiddenFiles, onclick: () => {
           settings.showHiddenFiles = !settings.showHiddenFiles;
           refresh();
@@ -483,7 +483,12 @@ osjs.register(applicationName, (core, args, options, metadata) => {
     id: 'FileManager',
     title,
     icon: proc.resource(metadata.icon),
-    dimension: {width: 400, height: 400}
+    dimension: {width: 400, height: 400},
+    attributes: {
+      mediaQueries: {
+        small: 'screen and (max-width: 400px)'
+      }
+    }
   })
     .on('destroy', () => proc.destroy())
     .on('render', (win) => win.focus())

@@ -15,6 +15,7 @@
     "de_DE": "Dateimanager"
   },
   "files": [
-    "main.js"
+    "main.js",
+    "main.css"
   ]
 }
