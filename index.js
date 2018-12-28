@@ -267,7 +267,7 @@ const createDialog = (bus, core, proc, win) => (type, item, cb) => {
 //
 const createApplication = (core, proc, win, $content) => {
   const homePath = {path: 'home:/'}; // FIXME
-  let currentPath = homePath; // FIXME
+  let currentPath = proc.args.path ? Object.assign({}, homePath, proc.args.path) : homePath;
   const settings = { // FIXME
     showHiddenFiles: true
   };
@@ -351,6 +351,7 @@ const createApplication = (core, proc, win, $content) => {
     win.setTitle(`${title} - ${path}`);
 
     currentPath = file;
+    proc.args.path = file;
   });
 
   bus.on('openMenu', (ev, item) => {
@@ -431,7 +432,7 @@ const createApplication = (core, proc, win, $content) => {
   });
 
   bus.on('goHome', () => bus.emit('openDirectory', homePath, 'clear'));
-  bus.emit('openDirectory', homePath);
+  bus.emit('openDirectory', currentPath);
 };
 
 //
