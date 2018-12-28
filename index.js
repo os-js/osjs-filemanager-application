@@ -150,9 +150,16 @@ const state = (bus, core, proc, win) => ({
     columns: [{
       label: 'Name'
     }, {
-      label: 'Type'
+      label: 'Type',
+      style: {
+        maxWidth: '150px'
+      }
     }, {
-      label: 'Size'
+      label: 'Size',
+      style: {
+        flex: '0 0 7em',
+        textAlign: 'right'
+      }
     }]
   })
 });
