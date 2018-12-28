@@ -155,7 +155,10 @@ const state = (bus, core, proc, win) => ({
 
   fileview: listView.state({
     columns: [{
-      label: 'Name'
+      label: 'Name',
+      style: {
+        minWidth: '20em'
+      }
     }, {
       label: 'Type',
       style: {
