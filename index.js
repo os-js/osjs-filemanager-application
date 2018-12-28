@@ -69,6 +69,12 @@ const getMountpoints = core => core.make('osjs/fs').mountpoints(true).map(m => (
   data: m
 }));
 
+const getMenuMountpoints = (core, cb) => core.make('osjs/fs').mountpoints(true).map(m => ({
+  label: m.label,
+  icon: m.icon,
+  onclick: () => cb(m.root)
+}));
+
 const rename = (item, to) => {
   const idx = item.path.lastIndexOf(item.filename);
   return item.path.substr(0, idx) + to;
@@ -90,7 +96,10 @@ const view = (bus, core, proc, win) => (state, actions) => {
       }, _('LBL_FILE')),
       h(MenubarItem, {
         onclick: ev => bus.emit('openMenu', ev, {name: 'view'})
-      }, _('LBL_VIEW'))
+      }, _('LBL_VIEW')),
+      h(MenubarItem, {
+        onclick: ev => bus.emit('openMenu', ev, {name: 'go'})
+      }, _('LBL_GO'))
     ]),
     h(Toolbar, {}, [
       h(Button, {
@@ -365,8 +374,8 @@ const createApplication = (core, proc, win, $content) => {
     const _ = core.make('osjs/locale').translate;
     const __ = core.make('osjs/locale').translatable(translations);
 
-    core.make('osjs/contextmenu').show({
-      menu: item.name === 'file' ? [
+    const menus = {
+      file: [
         {label: _('LBL_UPLOAD'), onclick: () => {
           const field = document.createElement('input');
           field.type = 'file';
@@ -381,13 +390,21 @@ const createApplication = (core, proc, win, $content) => {
         }},
         {label: _('LBL_MKDIR'), onclick: () => dialog('mkdir', {path: currentPath.path}, () => refresh())},
         {label: _('LBL_QUIT'), onclick: () => proc.destroy()}
-      ] :  [
+      ],
+
+      view: [
         {label: _('LBL_REFRESH'), onclick: () => refresh()},
         {label: __('LBL_SHOW_HIDDEN_FILES'), checked: settings.showHiddenFiles, onclick: () => {
           settings.showHiddenFiles = !settings.showHiddenFiles;
           refresh();
         }}
       ],
+
+      go: getMenuMountpoints(core, path => bus.emit('openDirectory', {path}))
+    };
+
+    core.make('osjs/contextmenu').show({
+      menu: menus[item.name] || [],
       position: ev.target
     });
   });
