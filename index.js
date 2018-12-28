@@ -92,13 +92,13 @@ const view = (bus, core, proc, win) => (state, actions) => {
   return h(Box, {}, [
     h(Menubar, {}, [
       h(MenubarItem, {
-        onclick: ev => bus.emit('openMenu', ev, {name: 'file'})
+        onclick: ev => bus.emit('openMenu', ev, state, actions, {name: 'file'})
       }, _('LBL_FILE')),
       h(MenubarItem, {
-        onclick: ev => bus.emit('openMenu', ev, {name: 'view'})
+        onclick: ev => bus.emit('openMenu', ev, state, actions, {name: 'view'})
       }, _('LBL_VIEW')),
       h(MenubarItem, {
-        onclick: ev => bus.emit('openMenu', ev, {name: 'go'})
+        onclick: ev => bus.emit('openMenu', ev, state, actions, {name: 'go'})
       }, _('LBL_GO'))
     ]),
     h(Toolbar, {}, [
@@ -128,10 +128,7 @@ const view = (bus, core, proc, win) => (state, actions) => {
         onenter: (ev, value) => bus.emit('openDirectory', {path: value}, 'clear')
       })
     ]),
-    h(Panes, {}, [
-      h(MountView),
-      h(FileView)
-    ]),
+    h(Panes, {style: {flex: '1 1'}}, [h(MountView), h(FileView)]),
     h(Statusbar, {}, [
       h('span', {}, state.status)
     ])
@@ -147,6 +144,7 @@ const state = (bus, core, proc, win) => ({
   status: '',
   history: [],
   historyIndex: -1,
+  minimalistic: false,
 
   mountview: listView.state({
     class: 'osjs-gui-fill',
@@ -184,6 +182,7 @@ const actions = (bus, core, proc, win) => ({
     return {history, historyIndex};
   },
   clearHistory: () => state => ({historyIndex: -1, history: []}),
+  setMinimalistic: minimalistic => ({minimalistic}),
   setHistory: history => state => ({history}),
   setPath: path => state => ({path}),
   setStatus: status => state => ({status}),
@@ -370,7 +369,7 @@ const createApplication = (core, proc, win, $content) => {
     proc.args.path = file;
   });
 
-  bus.on('openMenu', (ev, item) => {
+  bus.on('openMenu', (ev, state, actions, item) => {
     const _ = core.make('osjs/locale').translate;
     const __ = core.make('osjs/locale').translatable(translations);
 
@@ -394,6 +393,11 @@ const createApplication = (core, proc, win, $content) => {
 
       view: [
         {label: _('LBL_REFRESH'), onclick: () => refresh()},
+        /*
+        {label: __('LBL_MINIMALISTIC'), checked: state.minimalistic, onclick: () => {
+          actions.setMinimalistic(!state.minimalistic);
+        }},
+        */
         {label: __('LBL_SHOW_HIDDEN_FILES'), checked: settings.showHiddenFiles, onclick: () => {
           settings.showHiddenFiles = !settings.showHiddenFiles;
           refresh();
