@@ -454,7 +454,7 @@ const createApplication = (core, proc, win, $content) => {
     });
   });
 
-  win.on('drop', (w, ev, data, files) => {
+  win.on('drop', (ev, data, files) => {
     if (files.length) {
       Promise.all(files.map(upload))
         .then(() => refresh(files[0].name)) // FIXME: Select all ?
