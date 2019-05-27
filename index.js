@@ -314,11 +314,14 @@ const createApplication = (core, proc, win, $content) => {
   bus.on('selectFile', file => a.setStatus(getFileStatus(file)));
   bus.on('selectMountpoint', mount => bus.emit('openDirectory', {path: mount.root}));
 
-  bus.on('readFile', file => {
+  bus.on('readFile', (file, forceDialog) => {
     if (file.isDirectory) {
       bus.emit('openDirectory', file);
     } else {
-      core.open(file);
+      core.open(file, {
+        useDefault: true,
+        forceDialog
+      });
     }
   });
 
@@ -422,15 +425,23 @@ const createApplication = (core, proc, win, $content) => {
     }
 
     const _ = core.make('osjs/locale').translate;
+    const __ = core.make('osjs/locale').translatable(translations);
 
-    const menu = [
-      item.isDirectory ? {
+    const openMenu = item.isDirectory
+      ? [{
         label: _('LBL_GO'),
         onclick: () => bus.emit('readFile', item)
-      } : {
+      }]
+      : [{
         label: _('LBL_OPEN'),
         onclick: () => bus.emit('readFile', item)
-      },
+      }, {
+        label: __('LBL_OPEN_WITH'),
+        onclick: () => bus.emit('readFile', item, true)
+      }];
+
+    const menu = [
+      ...openMenu,
       {
         label: _('LBL_RENAME'),
         onclick: () => dialog('rename', item, () => refresh())
