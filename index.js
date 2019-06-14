@@ -240,7 +240,7 @@ const createDialog = (bus, core, proc, win) => (type, item, cb) => {
 
   if (type === 'mkdir') {
     core.make('osjs/dialog', 'prompt', {
-      message: `Create new directory`,
+      message: 'Create new directory',
       value: 'New directory'
     }, done(value => {
       if (value) {
