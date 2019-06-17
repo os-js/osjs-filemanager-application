@@ -1,6 +1,6 @@
 {
   "name": "@osjs/filemanager-application",
-  "version": "1.3.3",
+  "version": "1.3.4",
   "description": "OS.js v3 Filemanager Application",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
