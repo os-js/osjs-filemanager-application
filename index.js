@@ -351,6 +351,7 @@ const createApplication = (core, proc, win, $content) => {
     }
 
     const rows = files.map(f => ({
+      key: f.path,
       columns: [{label: f.filename, icon: getFileIcon(f)}, f.mime, f.humanSize],
       data: f
     }));

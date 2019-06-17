@@ -36,7 +36,7 @@
     "@babel/preset-env": "^7.2.3",
     "@babel/runtime": "^7.2.0",
     "@osjs/eslint-config": "^1.0.0",
-    "@osjs/gui": "^4.0.15",
+    "@osjs/gui": "^4.0.25",
     "babel-loader": "^8.0.4",
     "copy-webpack-plugin": "^4.6.0",
     "css-loader": "^2.1.0",
