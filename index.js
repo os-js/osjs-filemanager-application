@@ -289,7 +289,9 @@ const createDialog = (bus, core, proc, win) => (type, item, cb) => {
 const createApplication = (core, proc, win, $content) => {
   const homePath = {path: 'home:/'}; // FIXME
   let currentPath = proc.args.path ? Object.assign({}, homePath, proc.args.path) : homePath;
-  const settings = { // FIXME
+
+  // FIXME
+  const settings = {
     showHiddenFiles: true
   };
 
