@@ -12,5 +12,6 @@ export const nb_NO = {
 
 export const vi_VN = {
   LBL_SHOW_HIDDEN_FILES: 'Hiện các tập tin ẩn',
-  LBL_MINIMALISTIC: 'Tối giản'
+  LBL_MINIMALISTIC: 'Tối giản',
+  LBL_OPEN_WITH: 'Mở bằng...'
 };
