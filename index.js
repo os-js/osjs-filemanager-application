@@ -98,6 +98,9 @@ const view = (bus, core, proc, win) => (state, actions) => {
         onclick: ev => bus.emit('openMenu', ev, state, actions, {name: 'file'})
       }, _('LBL_FILE')),
       h(MenubarItem, {
+        onclick: ev => bus.emit('openMenu', ev, state, actions, {name: 'edit'})
+      }, _('LBL_EDIT')),
+      h(MenubarItem, {
         onclick: ev => bus.emit('openMenu', ev, state, actions, {name: 'view'})
       }, _('LBL_VIEW')),
       h(MenubarItem, {
@@ -222,6 +225,10 @@ const actions = (bus, core, proc, win) => ({
     const index = Math.min(state.history.length - 1, state.historyIndex + 1);
     bus.emit('openDirectory', state.history[index], true);
     return {historyIndex: index};
+  },
+
+  getSelectedIndex: () => state => {
+    return state.fileview.selectedIndex;
   }
 });
 
@@ -289,6 +296,7 @@ const createDialog = (bus, core, proc, win) => (type, item, cb) => {
 const createApplication = (core, proc, win, $content) => {
   const homePath = {path: 'home:/'}; // FIXME
   let currentPath = proc.args.path ? Object.assign({}, homePath, proc.args.path) : homePath;
+  let currentFile = undefined;
 
   // FIXME
   const settings = {
@@ -313,7 +321,57 @@ const createApplication = (core, proc, win, $content) => {
     return core.make('osjs/vfs').writefile({path: uploadpath}, f);
   };
 
-  bus.on('selectFile', file => a.setStatus(getFileStatus(file)));
+  const _ = core.make('osjs/locale').translate;
+  const __ = core.make('osjs/locale').translatable(translations);
+
+  const createEditMenuItems = (item, fromContext) => {
+    const isDirectory = item && item.isDirectory;
+    // FIXME: Check read-only ?
+    const isValidFile = item && ['..', '.'].indexOf(item.filename) === -1;
+
+    const openMenu = isDirectory
+      ? [{
+        label: _('LBL_GO'),
+        disabled: !item,
+        onclick: () => bus.emit('readFile', item)
+      }]
+      : [{
+        label: _('LBL_OPEN'),
+        disabled: !item,
+        onclick: () => bus.emit('readFile', item)
+      }, {
+        label: __('LBL_OPEN_WITH'),
+        disabled: !item,
+        onclick: () => bus.emit('readFile', item, true)
+      }];
+
+    const menu = [
+      ...openMenu,
+      {
+        label: _('LBL_RENAME'),
+        disabled: !isValidFile,
+        onclick: () => dialog('rename', item, () => refresh())
+      },
+      {
+        label: _('LBL_DELETE'),
+        disabled: !isValidFile,
+        onclick: () => dialog('delete', item, () => refresh())
+      }
+    ];
+
+    menu.push({
+      label: _('LBL_DOWNLOAD'),
+      disabled: !item || isDirectory || !isValidFile,
+      onclick: () => core.make('osjs/vfs').download(item)
+    });
+
+    return menu;
+  };
+
+  bus.on('selectFile', file => {
+    currentFile = file;
+    a.setStatus(getFileStatus(file));
+  });
   bus.on('selectMountpoint', mount => bus.emit('openDirectory', {path: mount.root}));
 
   bus.on('readFile', (file, forceDialog) => {
@@ -376,14 +434,12 @@ const createApplication = (core, proc, win, $content) => {
 
     win.setTitle(`${title} - ${path}`);
 
+    currentFile = undefined;
     currentPath = file;
     proc.args.path = file;
   });
 
   bus.on('openMenu', (ev, state, actions, item) => {
-    const _ = core.make('osjs/locale').translate;
-    const __ = core.make('osjs/locale').translatable(translations);
-
     const menus = {
       file: [
         {label: _('LBL_UPLOAD'), onclick: () => {
@@ -401,6 +457,8 @@ const createApplication = (core, proc, win, $content) => {
         {label: _('LBL_MKDIR'), onclick: () => dialog('mkdir', {path: currentPath.path}, () => refresh())},
         {label: _('LBL_QUIT'), onclick: () => proc.destroy()}
       ],
+
+      edit: createEditMenuItems(currentFile, false),
 
       view: [
         {label: _('LBL_REFRESH'), onclick: () => refresh()},
@@ -427,41 +485,7 @@ const createApplication = (core, proc, win, $content) => {
       return;
     }
 
-    const _ = core.make('osjs/locale').translate;
-    const __ = core.make('osjs/locale').translatable(translations);
-
-    const openMenu = item.isDirectory
-      ? [{
-        label: _('LBL_GO'),
-        onclick: () => bus.emit('readFile', item)
-      }]
-      : [{
-        label: _('LBL_OPEN'),
-        onclick: () => bus.emit('readFile', item)
-      }, {
-        label: __('LBL_OPEN_WITH'),
-        onclick: () => bus.emit('readFile', item, true)
-      }];
-
-    const menu = [
-      ...openMenu,
-      {
-        label: _('LBL_RENAME'),
-        onclick: () => dialog('rename', item, () => refresh())
-      },
-      {
-        label: _('LBL_DELETE'),
-        onclick: () => dialog('delete', item, () => refresh())
-      }
-    ];
-
-    if (!item.isDirectory) {
-      menu.push({
-        label: _('LBL_DOWNLOAD'),
-        onclick: () => core.make('osjs/vfs').download(item)
-      });
-    }
-
+    const menu = createEditMenuItems(item, true);
     core.make('osjs/contextmenu').show({
       position: ev,
       menu
