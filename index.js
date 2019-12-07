@@ -549,6 +549,11 @@ const createApplication = (core, proc, win, $content) => {
       Promise.all(files.map(upload))
         .then(() => refresh(files[0].name)) // FIXME: Select all ?
         .catch(error => dialog('error', {error, message: 'Failed to upload file(s)'}));
+    } else if (data && data.path && data.filename) {
+      const dest = {path: pathJoin(currentPath.path, data.filename)};
+      vfs.copy(data, dest)
+        .then(() => refresh(true))
+        .catch(error => dialog('error', {error, message: 'Failed to copy file'}));
     }
   });
 
