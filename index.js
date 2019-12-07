@@ -306,6 +306,8 @@ const createApplication = (core, proc, win, $content) => {
   const title = core.make('osjs/locale')
     .translatableFlat(proc.metadata.title);
 
+  const {pathJoin} = core.make('osjs/fs');
+  const vfs = core.make('osjs/vfs');
   const bus = core.make('osjs/event-handler', 'FileManager');
   const dialog = createDialog(bus, core, proc, win);
   const a = app(state(bus, core, proc, win),
@@ -314,15 +316,23 @@ const createApplication = (core, proc, win, $content) => {
     $content);
 
   const getFileIcon = file => file.icon || core.make('osjs/fs').icon(file);
-  const refresh = (currentFile) => bus.emit('openDirectory', currentPath, null, currentFile);
+  const refresh = (fileOrWatch) => {
+    // FIXME This should be implemented a bit better
+    if (fileOrWatch === true && core.config('vfs.watch')) {
+      return;
+    }
+
+    bus.emit('openDirectory', currentPath, null, fileOrWatch);
+  };
 
   const upload = f => {
     const uploadpath = currentPath.path.replace(/\/?$/, '/') + f.name;
-    return core.make('osjs/vfs').writefile({path: uploadpath}, f);
+    return vfs.writefile({path: uploadpath}, f);
   };
 
   const _ = core.make('osjs/locale').translate;
   const __ = core.make('osjs/locale').translatable(translations);
+  const clipboard = core.make('osjs/clipboard');
 
   const createEditMenuItems = (item, fromContext) => {
     const isDirectory = item && item.isDirectory;
@@ -345,24 +355,67 @@ const createApplication = (core, proc, win, $content) => {
         onclick: () => bus.emit('readFile', item, true)
       }];
 
+    const clipboardMenu = [
+      {
+        label: _('LBL_COPY'),
+        disabled: !isValidFile,
+        onclick: () => clipboard.set(({item}), 'filemanager:copy')
+      },
+      {
+        label: _('LBL_CUT'),
+        disabled: !isValidFile,
+        onclick: () => clipboard.set(({item, callback: () => refresh(true)}), 'filemanager:move')
+      }
+    ];
+
+    if (!fromContext) {
+      clipboardMenu.push({
+        label: _('LBL_PASTE'),
+        disabled: !clipboard.has(/^filemanager:/),
+        onclick: () => {
+          if (clipboard.has(/^filemanager:/)) {
+            const move = clipboard.has('filemanager:move');
+
+            // TODO: Error handling
+            clipboard.get(move)
+              .then(({item, callback}) => {
+                const dest = {path: pathJoin(currentPath.path, item.filename)};
+
+                return (move
+                  ? vfs.move(item, dest)
+                  : vfs.copy(item, dest))
+                  .then(() => {
+                    refresh(true);
+
+                    if (typeof callback === 'function') {
+                      callback();
+                    }
+                  });
+              });
+          }
+        }
+      });
+    }
+
     const menu = [
       ...openMenu,
       {
         label: _('LBL_RENAME'),
         disabled: !isValidFile,
-        onclick: () => dialog('rename', item, () => refresh())
+        onclick: () => dialog('rename', item, () => refresh(true))
       },
       {
         label: _('LBL_DELETE'),
         disabled: !isValidFile,
-        onclick: () => dialog('delete', item, () => refresh())
-      }
+        onclick: () => dialog('delete', item, () => refresh(true))
+      },
+      ...clipboardMenu
     ];
 
     menu.push({
       label: _('LBL_DOWNLOAD'),
       disabled: !item || isDirectory || !isValidFile,
-      onclick: () => core.make('osjs/vfs').download(item)
+      onclick: () => vfs.download(item)
     });
 
     return menu;
@@ -397,10 +450,9 @@ const createApplication = (core, proc, win, $content) => {
     let files;
 
     try {
-      files = await core.make('osjs/vfs')
-        .readdir(file, {
-          showHiddenFiles: settings.showHiddenFiles
-        });
+      files = await vfs.readdir(file, {
+        showHiddenFiles: settings.showHiddenFiles
+      });
     } catch (e) {
       console.warn(e);
       a.setPath(typeof currentPath === 'string' ? currentPath : currentPath.path);
@@ -454,7 +506,7 @@ const createApplication = (core, proc, win, $content) => {
           };
           field.click();
         }},
-        {label: _('LBL_MKDIR'), onclick: () => dialog('mkdir', {path: currentPath.path}, () => refresh())},
+        {label: _('LBL_MKDIR'), onclick: () => dialog('mkdir', {path: currentPath.path}, () => refresh(true))},
         {label: _('LBL_QUIT'), onclick: () => proc.destroy()}
       ],
 
