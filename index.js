@@ -576,11 +576,16 @@ osjs.register(applicationName, (core, args, options, metadata) => {
   const title = core.make('osjs/locale')
     .translatableFlat(metadata.title);
 
+  const dimension = Object.assign({
+    width: 400,
+    height: 400
+  }, core.config('filemanager.defaultWindowSize', {}));
+
   proc.createWindow({
     id: 'FileManager',
     title,
+    dimension,
     icon: proc.resource(metadata.icon),
-    dimension: {width: 400, height: 400},
     attributes: {
       mediaQueries: {
         small: 'screen and (max-width: 400px)'
