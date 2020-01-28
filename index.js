@@ -81,6 +81,37 @@ const rename = (item, to) => {
   return item.path.substr(0, idx) + to;
 };
 
+const createColumns = (options = {}) => {
+  const columns = [{
+    label: 'Name',
+    style: {
+      minWidth: '20em'
+    }
+  }];
+
+  if (options.showDate) {
+    columns.push({
+      label: 'Date'
+    });
+  }
+
+  return [
+    ...columns,
+    {
+      label: 'Type',
+      style: {
+        maxWidth: '150px'
+      }
+    }, {
+      label: 'Size',
+      style: {
+        flex: '0 0 7em',
+        textAlign: 'right'
+      }
+    }
+  ];
+};
+
 //
 // Our main window view
 //
@@ -145,7 +176,7 @@ const view = (bus, core, proc, win) => (state, actions) => {
 // Our main window state and actions
 //
 
-const state = (bus, core, proc, win) => ({
+const state = (bus, core, proc, win, settings) => ({
   path: '',
   status: '',
   history: [],
@@ -160,23 +191,7 @@ const state = (bus, core, proc, win) => ({
   }),
 
   fileview: listView.state({
-    columns: [{
-      label: 'Name',
-      style: {
-        minWidth: '20em'
-      }
-    }, {
-      label: 'Type',
-      style: {
-        maxWidth: '150px'
-      }
-    }, {
-      label: 'Size',
-      style: {
-        flex: '0 0 7em',
-        textAlign: 'right'
-      }
-    }]
+    columns: createColumns(settings)
   })
 });
 
@@ -198,6 +213,14 @@ const actions = (bus, core, proc, win) => ({
   setFileList: ({path, rows}) => (state, actions) => {
     actions.fileview.setRows(rows);
     return {path};
+  },
+  updateColumns: settings => state => {
+    return {
+      fileview: listView.state(Object.assign({}, state.fileview, {
+        rows: [],
+        columns: createColumns(settings)
+      }))
+    };
   },
 
   mountview: listView.actions({
@@ -300,7 +323,8 @@ const createApplication = (core, proc, win, $content) => {
 
   // FIXME
   const settings = {
-    showHiddenFiles: true
+    showHiddenFiles: true,
+    showDate: false
   };
 
   const title = core.make('osjs/locale')
@@ -310,7 +334,7 @@ const createApplication = (core, proc, win, $content) => {
   const vfs = core.make('osjs/vfs');
   const bus = core.make('osjs/event-handler', 'FileManager');
   const dialog = createDialog(bus, core, proc, win);
-  const a = app(state(bus, core, proc, win),
+  const a = app(state(bus, core, proc, win, settings),
     actions(bus, core, proc, win),
     view(bus, core, proc, win),
     $content);
@@ -332,7 +356,43 @@ const createApplication = (core, proc, win, $content) => {
 
   const _ = core.make('osjs/locale').translate;
   const __ = core.make('osjs/locale').translatable(translations);
+  const formatDate = core.make('osjs/locale').format;
   const clipboard = core.make('osjs/clipboard');
+
+  const formattedDate = f => {
+    if (f.stat) {
+      const rawDate = f.stat.mtime || f.stat.ctime;
+      if (rawDate) {
+        try {
+          const d = new Date(rawDate);
+          return `${formatDate(d, 'shortDate')} ${formatDate(d, 'shortTime')}`;
+        } catch (e) {
+          return rawDate;
+        }
+      }
+    }
+
+    return '';
+  };
+
+  const formattedRow = f => {
+    const columns = [
+      {
+        label: f.filename,
+        icon: getFileIcon(f)
+      }
+    ];
+
+    if (settings.showDate) {
+      columns.push(formattedDate(f));
+    }
+
+    return [
+      ...columns,
+      f.mime,
+      f.humanSize
+    ];
+  };
 
   const createEditMenuItems = (item, fromContext) => {
     const isDirectory = item && item.isDirectory;
@@ -464,7 +524,7 @@ const createApplication = (core, proc, win, $content) => {
 
     const rows = files.map(f => ({
       key: f.path,
-      columns: [{label: f.filename, icon: getFileIcon(f)}, f.mime, f.humanSize],
+      columns: formattedRow(f),
       data: f
     }));
 
@@ -516,6 +576,11 @@ const createApplication = (core, proc, win, $content) => {
         {label: _('LBL_REFRESH'), onclick: () => refresh()},
         {label: __('LBL_MINIMALISTIC'), checked: state.minimalistic, onclick: () => {
           actions.setMinimalistic(!state.minimalistic);
+        }},
+        {label: __('LBL_SHOW_DATE'), checked: settings.showDate, onclick: () => {
+          settings.showDate = !settings.showDate;
+          actions.updateColumns(settings);
+          refresh();
         }},
         {label: __('LBL_SHOW_HIDDEN_FILES'), checked: settings.showHiddenFiles, onclick: () => {
           settings.showHiddenFiles = !settings.showHiddenFiles;
