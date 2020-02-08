@@ -305,7 +305,7 @@ const vfsActionFactory = (core, proc, win, dialog, settings, state) => {
       const list = await vfs.readdir(dir, options);
 
       // NOTE: This sets a restore argument in the application session
-      proc.args.path = dir.path;
+      proc.args.path = dir;
 
       state.currentPath = dir;
 
