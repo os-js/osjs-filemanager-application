@@ -361,6 +361,30 @@ const vfsActionFactory = (core, proc, win, dialog, settings, state) => {
 };
 
 /**
+ * Clipboard action Factory
+ */
+const clipboardActionFactory = (core, state, vfs) => {
+  const clipboard = core.make('osjs/clipboard');
+
+  const set = item => clipboard.set(({item}), 'filemanager:copy');
+
+  const cut = item => clipboard.set(({
+    item,
+    callback: () => vfs.refresh(true)
+  }), 'filemanager:move');
+
+  const paste = () => {
+    if (clipboard.has(/^filemanager:/)) {
+      const move = clipboard.has('filemanager:move');
+      clipboard.get(move)
+        .then(vfs.paste(move, state.currentPath));
+    }
+  };
+
+  return {set, cut, paste};
+};
+
+/**
  * Dialog Factory
  */
 const dialogFactory = (core, proc, win) => {
@@ -708,7 +732,6 @@ const createApplication = (core, proc, settings) => {
  */
 const createWindow = (core, proc, settings) => {
   let wired;
-  const clipboard = core.make('osjs/clipboard');
   const state = {currentFile: undefined, currentPath: undefined};
   const {homePath, initialPath} = createInitialPaths(core, proc);
 
@@ -717,52 +740,44 @@ const createWindow = (core, proc, settings) => {
   const render = createApplication(core, proc, settings);
   const dialog = dialogFactory(core, proc, win);
   const createMenu = menuFactory(core, proc, win, settings);
-  const {action, refresh, drop, upload, readdir, download, paste} = vfsActionFactory(core, proc, win, dialog, settings, state);
+  const vfs = vfsActionFactory(core, proc, win, dialog, settings, state);
+  const clipboard = clipboardActionFactory(core, state, vfs);
 
   const setSetting = (key, value) => {
     settings[key] = value;
-    refresh();
+    vfs.refresh();
   };
 
   const onTitle = append => win.setTitle(`${title} - ${append}`);
   const onStatus = message => wired.setStatus(message);
-  const onRender = () => readdir(initialPath);
+  const onRender = () => vfs.readdir(initialPath);
   const onDestroy = () => proc.destroy();
-  const onDrop = (...args) => drop(...args);
-  const onHome = () => readdir(homePath, 'clear');
-  const onNavigate = (...args) => readdir(...args);
+  const onDrop = (...args) => vfs.drop(...args);
+  const onHome = () => vfs.readdir(homePath, 'clear');
+  const onNavigate = (...args) => vfs.readdir(...args);
   const onSelectItem = file => (state.currentFile = file);
   const onSelectStatus = file => win.emit('filemanager:status', formatFileMessage(file));
   const onContextMenu = ({ev, data}) => createMenu({ev, name: 'edit'}, data, true);
   const onReaddirRender = args => wired.setList(args);
-  const onRefresh = (...args) => refresh(...args);
+  const onRefresh = (...args) => vfs.refresh(...args);
   const onOpen = file => core.open(file, {useDefault: true});
   const onOpenWith = file => core.open(file, {useDefault: true, forceDialog: true});
   const onHistoryPush = file => wired.history.push(file);
   const onHistoryClear = () => wired.history.clear();
   const onMenu = (props, args) => createMenu(props, args || state.currentFile);
-  const onMenuUpload = (...args) => upload(...args);
-  const onMenuMkdir = () => dialog('mkdir', action, state.currentPath);
+  const onMenuUpload = (...args) => vfs.upload(...args);
+  const onMenuMkdir = () => dialog('mkdir', vfs.action, state.currentPath);
   const onMenuQuit = () => proc.destroy();
-  const onMenuRefresh = () => refresh();
+  const onMenuRefresh = () => vfs.refresh();
   const onMenuToggleMinimalistic = () => wired.toggleMinimalistic();
   const onMenuShowDate = () => setSetting('showDate', !settings.showDate);
   const onMenuShowHidden = () => setSetting('showHiddenFiles', !settings.showHiddenFiles);
-  const onMenuRename = file => dialog('rename', action, file);
-  const onMenuDelete = file => dialog('delete', action, file);
-  const onMenuDownload = (...args) => download(...args);
-  const onMenuCopy = item => clipboard.set(({item}), 'filemanager:copy');
-  const onMenuCut = item => clipboard.set(({
-    item,
-    callback: () => refresh(true)
-  }), 'filemanager:move');
-  const onMenuPaste = () => {
-    if (clipboard.has(/^filemanager:/)) {
-      const move = clipboard.has('filemanager:move');
-      clipboard.get(move)
-        .then(paste(move, state.currentPath));
-    }
-  };
+  const onMenuRename = file => dialog('rename', vfs.action, file);
+  const onMenuDelete = file => dialog('delete', vfs.action, file);
+  const onMenuDownload = (...args) => vfs.download(...args);
+  const onMenuCopy = item => clipboard.set(item);
+  const onMenuCut = item => clipboard.cut(item);
+  const onMenuPaste = () => clipboard.paste();
 
   return win
     .once('render', () => win.focus())
