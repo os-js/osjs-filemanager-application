@@ -250,7 +250,7 @@ const vfsActionFactory = (core, proc, win, dialog, settings, state) => {
       return;
     }
 
-    proc.emit('filemanager:readdir', state.currentPath, undefined, fileOrWatch);
+    win.emit('filemanager:navigate', state.currentPath, undefined, fileOrWatch);
   };
 
   const action = async (promiseCallback, refreshValue, defaultError) => {
@@ -300,7 +300,7 @@ const vfsActionFactory = (core, proc, win, dialog, settings, state) => {
       };
 
       win.setState('loading', true);
-      win.emit('filemanagerWindow:status', message);
+      win.emit('filemanager:status', message);
 
       const list = await vfs.readdir(dir, options);
 
@@ -310,13 +310,13 @@ const vfsActionFactory = (core, proc, win, dialog, settings, state) => {
       state.currentPath = dir;
 
       if (typeof history === 'undefined' || history === false) {
-        win.emit('filemanagerWindow:historyPush', dir);
+        win.emit('filemanager:historyPush', dir);
       } else if (history ===  'clear') {
-        win.emit('filemanagerWindow:historyClear');
+        win.emit('filemanager:historyClear');
       }
 
-      win.emit('filemanagerWindow:readdir', {list, path: dir.path, selectFile});
-      win.emit('filemanagerWindow:title', dir.path);
+      win.emit('filemanager:readdir', {list, path: dir.path, selectFile});
+      win.emit('filemanager:title', dir.path);
     } catch (error) {
       dialog('error', error, `An error occured while reading directory: ${dir.path}`);
     } finally {
@@ -431,9 +431,9 @@ const menuFactory = (core, proc, win, settings) => {
   const getMountpoints = () => fs.mountpoints(true);
 
   const createFileMenu = () => ([
-    {label: _('LBL_UPLOAD'), onclick: () => win.emit('filemanagerWindow:menu:upload')},
-    {label: _('LBL_MKDIR'), onclick: () => win.emit('filemanagerWindow:menu:mkdir')},
-    {label: _('LBL_QUIT'), onclick: () => win.emit('filemanagerWindow:menu:quit')}
+    {label: _('LBL_UPLOAD'), onclick: () => win.emit('filemanager:menu:upload')},
+    {label: _('LBL_MKDIR'), onclick: () => win.emit('filemanager:menu:mkdir')},
+    {label: _('LBL_QUIT'), onclick: () => win.emit('filemanager:menu:quit')}
   ]);
 
   const createEditMenu = (item, isContextMenu) => {
@@ -442,7 +442,7 @@ const menuFactory = (core, proc, win, settings) => {
     if (item && isSpecialFile(item.filename)) {
       return [{
         label: _('LBL_GO'),
-        onclick: () => emitter('filemanagerWindow:navigate')
+        onclick: () => emitter('filemanager:navigate')
       }];
     }
 
@@ -452,32 +452,32 @@ const menuFactory = (core, proc, win, settings) => {
     const openMenu = isDirectory ? [{
       label: _('LBL_GO'),
       disabled: !item,
-      onclick: () => emitter('filemanagerWindow:navigate')
+      onclick: () => emitter('filemanager:navigate')
     }] : [{
       label: _('LBL_OPEN'),
       disabled: !item,
-      onclick: () => emitter('filemanagerWindow:open')
+      onclick: () => emitter('filemanager:open')
     }, {
       label: __('LBL_OPEN_WITH'),
       disabled: !item,
-      onclick: () => emitter('filemanagerWindow:openWith')
+      onclick: () => emitter('filemanager:openWith')
     }];
 
     const clipboardMenu = [{
       label: _('LBL_COPY'),
       disabled: !isValidFile,
-      onclick: () => emitter('filemanagerWindow:menu:copy')
+      onclick: () => emitter('filemanager:menu:copy')
     }, {
       label: _('LBL_CUT'),
       disabled: !isValidFile,
-      onclick: () => emitter('filemanagerWindow:menu:cut')
+      onclick: () => emitter('filemanager:menu:cut')
     }];
 
     if (!isContextMenu) {
       clipboardMenu.push({
         label: _('LBL_PASTE'),
         disabled: !clipboard.has(/^filemanager:/),
-        onclick: () => emitter('filemanagerWindow:menu:paste')
+        onclick: () => emitter('filemanager:menu:paste')
       });
     }
 
@@ -486,33 +486,33 @@ const menuFactory = (core, proc, win, settings) => {
       {
         label: _('LBL_RENAME'),
         disabled: !isValidFile,
-        onclick: () => emitter('filemanagerWindow:menu:rename')
+        onclick: () => emitter('filemanager:menu:rename')
       },
       {
         label: _('LBL_DELETE'),
         disabled: !isValidFile,
-        onclick: () => emitter('filemanagerWindow:menu:delete')
+        onclick: () => emitter('filemanager:menu:delete')
       },
       ...clipboardMenu,
       {
         label: _('LBL_DOWNLOAD'),
         disabled: !item || isDirectory || !isValidFile,
-        onclick: () => emitter('filemanagerWindow:menu:download')
+        onclick: () => emitter('filemanager:menu:download')
       }
     ];
   };
 
   const createViewMenu = (state) => ([
-    {label: _('LBL_REFRESH'), onclick: () => win.emit('filemanagerWindow:menu:refresh')},
-    {label: __('LBL_MINIMALISTIC'), checked: state.minimalistic, onclick: () => win.emit('filemanagerWindow:menu:toggleMinimalistic')},
-    {label: __('LBL_SHOW_DATE'), checked: settings.showDate, onclick: () => win.emit('filemanagerWindow:menu:showDate')},
-    {label: __('LBL_SHOW_HIDDEN_FILES'), checked: settings.showHiddenFiles, onclick: () => win.emit('filemanagerWindow:menu:showHidden')}
+    {label: _('LBL_REFRESH'), onclick: () => win.emit('filemanager:menu:refresh')},
+    {label: __('LBL_MINIMALISTIC'), checked: state.minimalistic, onclick: () => win.emit('filemanager:menu:toggleMinimalistic')},
+    {label: __('LBL_SHOW_DATE'), checked: settings.showDate, onclick: () => win.emit('filemanager:menu:showDate')},
+    {label: __('LBL_SHOW_HIDDEN_FILES'), checked: settings.showHiddenFiles, onclick: () => win.emit('filemanager:menu:showHidden')}
   ]);
 
   const createGoMenu = () => getMountpoints().map(m => ({
     label: m.label,
     icon: m.icon,
-    onclick: () => win.emit('filemanagerWindow:navigate', {path: m.root})
+    onclick: () => win.emit('filemanager:navigate', {path: m.root})
   }));
 
   const menuItems = {
@@ -541,8 +541,8 @@ const createView = (core, proc, win) => {
   const {icon} = core.make('osjs/theme');
   const {translate: _} = core.make('osjs/locale');
 
-  const onMenuClick = (name, args) => ev => win.emit('filemanagerWindow:menu', {ev, name}, args);
-  const onInputEnter = (ev, value) => win.emit('filemanagerWindow:navigate', {path: value});
+  const onMenuClick = (name, args) => ev => win.emit('filemanager:menu', {ev, name}, args);
+  const onInputEnter = (ev, value) => win.emit('filemanager:navigate', {path: value});
 
   const canGoBack = ({list, index}) => !list.length || index <= 0;
   const canGoForward = ({list, index}) => !list.length || (index === list.length - 1);
@@ -576,7 +576,7 @@ const createView = (core, proc, win) => {
         h(Button, {
           title: _('LBL_HOME'),
           icon: icon('go-home'),
-          onclick: () => win.emit('filemanagerWindow:home')
+          onclick: () => win.emit('filemanager:home')
         }),
         h(TextField, {
           value: state.path,
@@ -640,13 +640,13 @@ const createApplication = (core, proc, settings) => {
 
       back: () => ({index, list}) => {
         const newIndex = Math.max(0, index - 1);
-        win.emit('filemanagerWindow:navigate', list[newIndex], true);
+        win.emit('filemanager:navigate', list[newIndex], true);
         return {index: newIndex};
       },
 
       forward: () => ({index, list}) => {
         const newIndex = Math.min(list.length - 1, index + 1);
-        win.emit('filemanagerWindow:navigate', list[newIndex], true);
+        win.emit('filemanager:navigate', list[newIndex], true);
         return {index: newIndex};
       }
     },
@@ -681,13 +681,13 @@ const createApplication = (core, proc, settings) => {
     },
 
     mountview: listView.actions({
-      select: ({data}) => win.emit('filemanagerWindow:navigate', {path: data.root})
+      select: ({data}) => win.emit('filemanager:navigate', {path: data.root})
     }),
 
     fileview: listView.actions({
-      select: ({data}) => win.emit('filemanagerWindow:select', data),
-      activate: ({data}) => win.emit(`filemanagerWindow:${data.isFile ? 'open' : 'navigate'}`, data),
-      contextmenu: args => win.emit('filemanagerWindow:contextmenu', args),
+      select: ({data}) => win.emit('filemanager:select', data),
+      activate: ({data}) => win.emit(`filemanager:${data.isFile ? 'open' : 'navigate'}`, data),
+      contextmenu: args => win.emit('filemanager:contextmenu', args),
       created: ({el, data}) => {
         if (data.isFile) {
           draggable(el, {data});
@@ -708,100 +708,55 @@ const createApplication = (core, proc, settings) => {
  */
 const createWindow = (core, proc, settings) => {
   let wired;
+  const clipboard = core.make('osjs/clipboard');
+  const state = {currentFile: undefined, currentPath: undefined};
   const {homePath, initialPath} = createInitialPaths(core, proc);
 
   const title = core.make('osjs/locale').translatableFlat(proc.metadata.title);
   const win = proc.createWindow(createWindowOptions(core, proc, title));
   const render = createApplication(core, proc, settings);
-
-  const onTitle = append => win.setTitle(`${title} - ${append}`);
-  const onStatus = message => wired.setStatus(message);
-  const onRender = () => proc.emit('filemanager:readdir', initialPath);
-  const onDestroy = () => proc.destroy();
-  const onDrop = (...args) => proc.emit('filemanager:drop', ...args);
-  const onHome = () => proc.emit('filemanager:readdir', homePath, 'clear');
-  const onNavigate = (...args) => proc.emit('filemanager:readdir', ...args);
-  const onSelectItem = file => proc.emit('filemanager:select', file);
-  const onSelectStatus = file => win.emit('filemanagerWindow:status', formatFileMessage(file));
-  const onContextMenu = args => proc.emit('filemanager:contextmenu', args);
-  const onReaddirRender = args => wired.setList(args);
-  const onOpen = file => core.open(file, {useDefault: true});
-  const onOpenWith = file => core.open(file, {useDefault: true, forceDialog: true});
-  const onHistoryPush = file => wired.history.push(file);
-  const onHistoryClear = () => wired.history.clear();
-  const onMenu = (props, args) => proc.emit('filemanager:menu', props, args);
-  const onMenuUpload = () => proc.emit('filemanager:upload');
-  const onMenuMkdir = () => proc.emit('filemanager:mkdir');
-  const onMenuQuit = () => proc.destroy();
-  const onMenuRefresh = () => proc.emit('filemanager:refresh');
-  const onMenuToggleMinimalistic = () => wired.toggleMinimalistic();
-  const onMenuShowDate = () => proc.emit('filemanager:setting', 'showDate', !settings.showDate);
-  const onMenuShowHidden = () => proc.emit('filemanager:setting', 'showHiddenFiles', !settings.showHiddenFiles);
-  const onMenuCopy = file => proc.emit('filemanager:copy', file);
-  const onMenuCut = file => proc.emit('filemanager:cut', file);
-  const onMenuPaste = () => proc.emit('filemanager:paste');
-  const onMenuRename = file => proc.emit('filemanager:rename', file);
-  const onMenuDelete = file => proc.emit('filemanager:delete', file);
-  const onMenuDownload = file => proc.emit('filemanager:download', file);
-
-  return win
-    .once('render', () => win.focus())
-    .once('destroy', () => (wired = undefined))
-    .once('render', onRender)
-    .once('destroy', onDestroy)
-    .on('drop', onDrop)
-    .on('filemanagerWindow:title', onTitle)
-    .on('filemanagerWindow:status', onStatus)
-    .on('filemanagerWindow:menu', onMenu)
-    .on('filemanagerWindow:home', onHome)
-    .on('filemanagerWindow:navigate', onNavigate)
-    .on('filemanagerWindow:select', onSelectItem)
-    .on('filemanagerWindow:select', onSelectStatus)
-    .on('filemanagerWindow:contextmenu', onContextMenu)
-    .on('filemanagerWindow:readdir', onReaddirRender)
-    .on('filemanagerWindow:open', onOpen)
-    .on('filemanagerWindow:openWith', onOpenWith)
-    .on('filemanagerWindow:historyPush', onHistoryPush)
-    .on('filemanagerWindow:historyClear', onHistoryClear)
-    .on('filemanagerWindow:menu:upload', onMenuUpload)
-    .on('filemanagerWindow:menu:mkdir', onMenuMkdir)
-    .on('filemanagerWindow:menu:quit', onMenuQuit)
-    .on('filemanagerWindow:menu:refresh', onMenuRefresh)
-    .on('filemanagerWindow:menu:toggleMinimalistic', onMenuToggleMinimalistic)
-    .on('filemanagerWindow:menu:showDate', onMenuShowDate)
-    .on('filemanagerWindow:menu:showHidden', onMenuShowHidden)
-    .on('filemanagerWindow:menu:copy', onMenuCopy)
-    .on('filemanagerWindow:menu:cut', onMenuCut)
-    .on('filemanagerWindow:menu:paste', onMenuPaste)
-    .on('filemanagerWindow:menu:rename', onMenuRename)
-    .on('filemanagerWindow:menu:delete', onMenuDelete)
-    .on('filemanagerWindow:menu:download', onMenuDownload)
-    .render(($content, win) => (wired = render($content, win)));
-};
-
-/**
- * Launches the OS.js application process
- */
-const createProcess = (core, args, options, metadata) => {
-  const state = {currentFile: undefined, currentPath: undefined};
-  const settings = createDefaultSettings(); // TODO: Persistence
-  const clipboard = core.make('osjs/clipboard');
-  const proc = core.make('osjs/application', {args, options, metadata});
-  const win = createWindow(core, proc, settings);
   const dialog = dialogFactory(core, proc, win);
   const createMenu = menuFactory(core, proc, win, settings);
   const {action, refresh, drop, upload, readdir, download, paste} = vfsActionFactory(core, proc, win, dialog, settings, state);
 
-  const onMenu = (props, args) => createMenu(props, args || state.currentFile);
-  const onContextMenu = ({ev, data}) => createMenu({ev, name: 'edit'}, data, true);
-  const onSelect = file => (state.currentFile = file);
+  const setSetting = (key, value) => {
+    settings[key] = value;
+    refresh();
+  };
 
-  const onCopy = item => clipboard.set(({item}), 'filemanager:copy');
-  const onCut = item => clipboard.set(({
+  const onTitle = append => win.setTitle(`${title} - ${append}`);
+  const onStatus = message => wired.setStatus(message);
+  const onRender = () => readdir(initialPath);
+  const onDestroy = () => proc.destroy();
+  const onDrop = (...args) => drop(...args);
+  const onHome = () => readdir(homePath, 'clear');
+  const onNavigate = (...args) => readdir(...args);
+  const onSelectItem = file => (state.currentFile = file);
+  const onSelectStatus = file => win.emit('filemanager:status', formatFileMessage(file));
+  const onContextMenu = ({ev, data}) => createMenu({ev, name: 'edit'}, data, true);
+  const onReaddirRender = args => wired.setList(args);
+  const onRefresh = (...args) => refresh(...args);
+  const onOpen = file => core.open(file, {useDefault: true});
+  const onOpenWith = file => core.open(file, {useDefault: true, forceDialog: true});
+  const onHistoryPush = file => wired.history.push(file);
+  const onHistoryClear = () => wired.history.clear();
+  const onMenu = (props, args) => createMenu(props, args || state.currentFile);
+  const onMenuUpload = (...args) => upload(...args);
+  const onMenuMkdir = () => dialog('mkdir', action, state.currentPath);
+  const onMenuQuit = () => proc.destroy();
+  const onMenuRefresh = () => refresh();
+  const onMenuToggleMinimalistic = () => wired.toggleMinimalistic();
+  const onMenuShowDate = () => setSetting('showDate', !settings.showDate);
+  const onMenuShowHidden = () => setSetting('showHiddenFiles', !settings.showHiddenFiles);
+  const onMenuRename = file => dialog('rename', action, file);
+  const onMenuDelete = file => dialog('delete', action, file);
+  const onMenuDownload = (...args) => download(...args);
+  const onMenuCopy = item => clipboard.set(({item}), 'filemanager:copy');
+  const onMenuCut = item => clipboard.set(({
     item,
-    callback: () => proc.emit('filemanager:refresh', true)
+    callback: () => refresh(true)
   }), 'filemanager:move');
-  const onPaste = () => {
+  const onMenuPaste = () => {
     if (clipboard.has(/^filemanager:/)) {
       const move = clipboard.has('filemanager:move');
       clipboard.get(move)
@@ -809,34 +764,52 @@ const createProcess = (core, args, options, metadata) => {
     }
   };
 
-  const onUpload = (...args) => upload(...args);
-  const onDrop = (...args) => drop(...args);
-  const onReaddir = (...args) => readdir(...args);
-  const onDownload = (...args) => download(...args);
-  const onMkdir = () => dialog('mkdir', action, state.currentPath);
-  const onRename = file => dialog('rename', action, file);
-  const onDelete = file => dialog('delete', action, file);
-  const onSetting = (key, value) => {
-    settings[key] = value;
-    refresh();
-  };
-
-  return proc
+  return win
+    .once('render', () => win.focus())
+    .once('destroy', () => (wired = undefined))
+    .once('render', onRender)
+    .once('destroy', onDestroy)
+    .on('drop', onDrop)
+    .on('filemanager:title', onTitle)
+    .on('filemanager:status', onStatus)
     .on('filemanager:menu', onMenu)
+    .on('filemanager:home', onHome)
+    .on('filemanager:navigate', onNavigate)
+    .on('filemanager:select', onSelectItem)
+    .on('filemanager:select', onSelectStatus)
     .on('filemanager:contextmenu', onContextMenu)
-    .on('filemanager:upload', onUpload)
-    .on('filemanager:select', onSelect)
-    .on('filemanager:download', onDownload)
-    .on('filemanager:mkdir', onMkdir)
-    .on('filemanager:rename', onRename)
-    .on('filemanager:delete', onDelete)
-    .on('filemanager:refresh', refresh)
-    .on('filemanager:copy', onCopy)
-    .on('filemanager:paste', onPaste)
-    .on('filemanager:cut', onCut)
-    .on('filemanager:drop', onDrop)
-    .on('filemanager:readdir', onReaddir)
-    .on('filemanager:setting', onSetting);
+    .on('filemanager:readdir', onReaddirRender)
+    .on('filemanager:refresh', onRefresh)
+    .on('filemanager:open', onOpen)
+    .on('filemanager:openWith', onOpenWith)
+    .on('filemanager:historyPush', onHistoryPush)
+    .on('filemanager:historyClear', onHistoryClear)
+    .on('filemanager:menu:upload', onMenuUpload)
+    .on('filemanager:menu:mkdir', onMenuMkdir)
+    .on('filemanager:menu:quit', onMenuQuit)
+    .on('filemanager:menu:refresh', onMenuRefresh)
+    .on('filemanager:menu:toggleMinimalistic', onMenuToggleMinimalistic)
+    .on('filemanager:menu:showDate', onMenuShowDate)
+    .on('filemanager:menu:showHidden', onMenuShowHidden)
+    .on('filemanager:menu:copy', onMenuCopy)
+    .on('filemanager:menu:cut', onMenuCut)
+    .on('filemanager:menu:paste', onMenuPaste)
+    .on('filemanager:menu:rename', onMenuRename)
+    .on('filemanager:menu:delete', onMenuDelete)
+    .on('filemanager:menu:download', onMenuDownload)
+    .render(($content, win) => (wired = render($content, win)));
+};
+
+/**
+ * Launches the OS.js application process
+ */
+const createProcess = (core, args, options, metadata) => {
+  const settings = createDefaultSettings(); // TODO: Persistence
+  const proc = core.make('osjs/application', {args, options, metadata});
+
+  createWindow(core, proc, settings);
+
+  return proc;
 };
 
 osjs.register(applicationName, createProcess);
