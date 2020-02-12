@@ -15,3 +15,9 @@ export const vi_VN = {
   LBL_MINIMALISTIC: 'Tối giản',
   LBL_OPEN_WITH: 'Mở bằng...'
 };
+
+export const pt_BR = {
+  LBL_SHOW_HIDDEN_FILES: 'Mostrar arquivos ocultos',
+  LBL_MINIMALISTIC: 'Minimalista',
+  LBL_OPEN_WITH: 'Abrir com...'
+};
