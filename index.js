@@ -158,7 +158,7 @@ const mountViewRowsFactory = (core) => {
 /**
  * File view columns Factory
  */
-const listViewColumnFactory = (core, proc, settings) => {
+const listViewColumnFactory = (core, proc) => {
   return () => {
     const columns = [{
       label: 'Name',
@@ -167,7 +167,7 @@ const listViewColumnFactory = (core, proc, settings) => {
       }
     }];
 
-    if (settings.showDate) {
+    if (proc.settings.showDate) {
       columns.push({
         label: 'Date'
       });
@@ -194,7 +194,7 @@ const listViewColumnFactory = (core, proc, settings) => {
 /**
  * File view rows Factory
  */
-const listViewRowFactory = (core, proc, settings) => {
+const listViewRowFactory = (core, proc) => {
   const fs = core.make('osjs/fs');
   const {format: formatDate} = core.make('osjs/locale');
   const getFileIcon = file => file.icon || fs.icon(file);
@@ -221,7 +221,7 @@ const listViewRowFactory = (core, proc, settings) => {
       icon: getFileIcon(f)
     }];
 
-    if (settings.showDate) {
+    if (proc.settings.showDate) {
       columns.push(formattedDate(f));
     }
 
@@ -240,7 +240,7 @@ const listViewRowFactory = (core, proc, settings) => {
 /**
  * VFS action Factory
  */
-const vfsActionFactory = (core, proc, win, dialog, settings, state) => {
+const vfsActionFactory = (core, proc, win, dialog, state) => {
   const vfs = core.make('osjs/vfs');
   const {pathJoin} = core.make('osjs/fs');
 
@@ -296,7 +296,7 @@ const vfsActionFactory = (core, proc, win, dialog, settings, state) => {
     try {
       const message = `Loading ${dir.path}`;
       const options = {
-        showHiddenFiles: settings.showHiddenFiles
+        showHiddenFiles: proc.settings.showHiddenFiles
       };
 
       win.setState('loading', true);
@@ -445,7 +445,7 @@ const dialogFactory = (core, proc, win) => {
 /**
  * Creates Menus
  */
-const menuFactory = (core, proc, win, settings) => {
+const menuFactory = (core, proc, win) => {
   const fs = core.make('osjs/fs');
   const clipboard = core.make('osjs/clipboard');
   const contextmenu = core.make('osjs/contextmenu');
@@ -529,8 +529,8 @@ const menuFactory = (core, proc, win, settings) => {
   const createViewMenu = (state) => ([
     {label: _('LBL_REFRESH'), onclick: () => win.emit('filemanager:menu:refresh')},
     {label: __('LBL_MINIMALISTIC'), checked: state.minimalistic, onclick: () => win.emit('filemanager:menu:toggleMinimalistic')},
-    {label: __('LBL_SHOW_DATE'), checked: settings.showDate, onclick: () => win.emit('filemanager:menu:showDate')},
-    {label: __('LBL_SHOW_HIDDEN_FILES'), checked: settings.showHiddenFiles, onclick: () => win.emit('filemanager:menu:showHidden')}
+    {label: __('LBL_SHOW_DATE'), checked: proc.settings.showDate, onclick: () => win.emit('filemanager:menu:showDate')},
+    {label: __('LBL_SHOW_HIDDEN_FILES'), checked: proc.settings.showHiddenFiles, onclick: () => win.emit('filemanager:menu:showHidden')}
   ]);
 
   const createGoMenu = () => getMountpoints().map(m => ({
@@ -620,9 +620,9 @@ const createView = (core, proc, win) => {
 /**
  * Creates a new FileManager user interface
  */
-const createApplication = (core, proc, settings) => {
-  const createColumns = listViewColumnFactory(core, proc, settings);
-  const createRows = listViewRowFactory(core, proc, settings);
+const createApplication = (core, proc) => {
+  const createColumns = listViewColumnFactory(core, proc);
+  const createRows = listViewRowFactory(core, proc);
   const createMounts = mountViewRowsFactory(core);
   const {draggable} = core.make('osjs/dnd');
 
@@ -730,21 +730,22 @@ const createApplication = (core, proc, settings) => {
 /**
  * Creates a new FileManager window
  */
-const createWindow = (core, proc, settings) => {
+const createWindow = (core, proc) => {
   let wired;
   const state = {currentFile: undefined, currentPath: undefined};
   const {homePath, initialPath} = createInitialPaths(core, proc);
 
   const title = core.make('osjs/locale').translatableFlat(proc.metadata.title);
   const win = proc.createWindow(createWindowOptions(core, proc, title));
-  const render = createApplication(core, proc, settings);
+  const render = createApplication(core, proc);
   const dialog = dialogFactory(core, proc, win);
-  const createMenu = menuFactory(core, proc, win, settings);
-  const vfs = vfsActionFactory(core, proc, win, dialog, settings, state);
+  const createMenu = menuFactory(core, proc, win);
+  const vfs = vfsActionFactory(core, proc, win, dialog, state);
   const clipboard = clipboardActionFactory(core, state, vfs);
 
   const setSetting = (key, value) => {
-    settings[key] = value;
+    proc.settings[key] = value;
+    proc.saveSettings();
     vfs.refresh();
   };
 
@@ -770,8 +771,8 @@ const createWindow = (core, proc, settings) => {
   const onMenuQuit = () => proc.destroy();
   const onMenuRefresh = () => vfs.refresh();
   const onMenuToggleMinimalistic = () => wired.toggleMinimalistic();
-  const onMenuShowDate = () => setSetting('showDate', !settings.showDate);
-  const onMenuShowHidden = () => setSetting('showHiddenFiles', !settings.showHiddenFiles);
+  const onMenuShowDate = () => setSetting('showDate', !proc.settings.showDate);
+  const onMenuShowHidden = () => setSetting('showHiddenFiles', !proc.settings.showHiddenFiles);
   const onMenuRename = file => dialog('rename', vfs.action, file);
   const onMenuDelete = file => dialog('delete', vfs.action, file);
   const onMenuDownload = (...args) => vfs.download(...args);
@@ -819,10 +820,16 @@ const createWindow = (core, proc, settings) => {
  * Launches the OS.js application process
  */
 const createProcess = (core, args, options, metadata) => {
-  const settings = createDefaultSettings(); // TODO: Persistence
-  const proc = core.make('osjs/application', {args, options, metadata});
 
-  createWindow(core, proc, settings);
+  const proc = core.make('osjs/application', {
+    args,
+    metadata,
+    options: Object.assign({}, options, {
+      settings: createDefaultSettings()
+    })
+  });
+
+  createWindow(core, proc);
 
   return proc;
 };
