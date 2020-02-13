@@ -131,12 +131,17 @@ const formatFileMessage = file => `${file.filename} (${file.size} bytes)`;
 /**
  * Formats directory status message
  */
-const formatStatusMessage = (path, files) => {
-  const directoryCount = files.filter(f => f.isDirectory).length;
-  const fileCount = files.filter(f => !f.isDirectory).length;
-  const totalSize = files.reduce((t, f) => t + (f.size || 0), 0);
+const formatStatusMessage = (core) => {
+  const {translatable} = core.make('osjs/locale');
+  const __ = translatable(translations);
 
-  return `${directoryCount} directories, ${fileCount} files, ${totalSize} bytes total`;
+  return (path, files) => {
+    const directoryCount = files.filter(f => f.isDirectory).length;
+    const fileCount = files.filter(f => !f.isDirectory).length;
+    const totalSize = files.reduce((t, f) => t + (f.size || 0), 0);
+
+    return __('LBL_STATUS', directoryCount, fileCount, totalSize);
+  };
 };
 
 /**
@@ -159,9 +164,11 @@ const mountViewRowsFactory = (core) => {
  * File view columns Factory
  */
 const listViewColumnFactory = (core, proc) => {
+  const {translate: _} = core.make('osjs/locale');
+
   return () => {
     const columns = [{
-      label: 'Name',
+      label: _('LBL_NAME'),
       style: {
         minWidth: '20em'
       }
@@ -169,19 +176,19 @@ const listViewColumnFactory = (core, proc) => {
 
     if (proc.settings.showDate) {
       columns.push({
-        label: 'Date'
+        label: _('LBL_DATE')
       });
     }
 
     return [
       ...columns,
       {
-        label: 'Type',
+        label: _('LBL_TYPE'),
         style: {
           maxWidth: '150px'
         }
       }, {
-        label: 'Size',
+        label: _('LBL_SIZE'),
         style: {
           flex: '0 0 7em',
           textAlign: 'right'
@@ -243,6 +250,8 @@ const listViewRowFactory = (core, proc) => {
 const vfsActionFactory = (core, proc, win, dialog, state) => {
   const vfs = core.make('osjs/vfs');
   const {pathJoin} = core.make('osjs/fs');
+  const {translatable} = core.make('osjs/locale');
+  const __ = translatable(translations);
 
   const refresh = (fileOrWatch) => {
     // FIXME This should be implemented a bit better
@@ -261,7 +270,7 @@ const vfsActionFactory = (core, proc, win, dialog, state) => {
       refresh(refreshValue);
       return result;
     } catch (error) {
-      dialog('error', error, defaultError || 'An error occured');
+      dialog('error', error, defaultError || __('MSG_ERROR'));
     } finally {
       win.setState('loading', false);
     }
@@ -276,13 +285,13 @@ const vfsActionFactory = (core, proc, win, dialog, state) => {
   const uploadBrowserFiles = (files) => {
     Promise.all(files.map(writeRelative))
       .then(() => refresh(files[0].name)) // FIXME: Select all ?
-      .catch(error => dialog('error', error, 'Failed to upload file(s)'));
+      .catch(error => dialog('error', error, __('MSG_UPLOAD_ERROR')));
   };
 
   const uploadVirtualFile = (data) => {
     const dest = {path: pathJoin(state.currentPath.path, data.filename)};
     if (dest.path !== data.path) {
-      action(() => vfs.copy(data, dest), true, 'Failed to upload file(s)');
+      action(() => vfs.copy(data, dest), true, __('MSG_UPLOAD_ERROR'));
     }
   };
 
@@ -294,7 +303,7 @@ const vfsActionFactory = (core, proc, win, dialog, state) => {
     }
 
     try {
-      const message = `Loading ${dir.path}`;
+      const message = __('LBL_LOADING', dir.path);
       const options = {
         showHiddenFiles: proc.settings.showHiddenFiles
       };
@@ -318,7 +327,7 @@ const vfsActionFactory = (core, proc, win, dialog, state) => {
       win.emit('filemanager:readdir', {list, path: dir.path, selectFile});
       win.emit('filemanager:title', dir.path);
     } catch (error) {
-      dialog('error', error, `An error occured while reading directory: ${dir.path}`);
+      dialog('error', error, __('MSG_READDIR_ERROR', dir.path));
     } finally {
       state.currentFile = undefined;
       win.setState('loading', false);
@@ -328,7 +337,7 @@ const vfsActionFactory = (core, proc, win, dialog, state) => {
   const upload = () => triggerBrowserUpload(files => {
     writeRelative(files[0])
       .then(() => refresh(files[0].name))
-      .catch(error => dialog('error', error, 'Failed to upload file(s)'));
+      .catch(error => dialog('error', error, __('MSG_UPLOAD_ERROR')));
   });
 
   const paste = (move, currentPath) => ({item, callback}) => {
@@ -346,7 +355,7 @@ const vfsActionFactory = (core, proc, win, dialog, state) => {
           callback();
         }
       })
-      .catch(error => dialog('error', error, 'Failed to paste file(s)'));
+      .catch(error => dialog('error', error, __('MSG_PASTE_ERROR')));
   };
 
   return {
@@ -390,6 +399,8 @@ const clipboardActionFactory = (core, state, vfs) => {
 const dialogFactory = (core, proc, win) => {
   const vfs = core.make('osjs/vfs');
   const {pathJoin} = core.make('osjs/fs');
+  const {translatable} = core.make('osjs/locale');
+  const __ = translatable(translations);
 
   const dialog = (name, args, cb) => core.make('osjs/dialog', name, args, {
     parent: win,
@@ -401,7 +412,7 @@ const dialogFactory = (core, proc, win) => {
     value: 'New directory'
   }, usingPositiveButton(value => {
     const newPath = pathJoin(currentPath.path, value);
-    action(() => vfs.mkdir({path: newPath}), value, 'Failed to create directory');
+    action(() => vfs.mkdir({path: newPath}), value, __('MSG_MKDIR_ERROR'));
   }));
 
   const renameDialog = (action, file) => dialog('prompt', {
@@ -411,13 +422,13 @@ const dialogFactory = (core, proc, win) => {
     const idx = file.path.lastIndexOf(file.filename);
     const newPath = file.path.substr(0, idx) + value;
 
-    action(() => vfs.rename(file, {path: newPath}), value, 'Failed to rename');
+    action(() => vfs.rename(file, {path: newPath}), value, __('MSG_RENAME_ERROR'));
   }));
 
   const deleteDialog = (action, file) => dialog('confirm', {
     message: `Delete ${file.filename}`
   }, usingPositiveButton(() => {
-    action(() => vfs.unlink(file), true, 'Failed to delete');
+    action(() => vfs.unlink(file), true, __('MSG_DELETE_ERROR'));
   }));
 
   const errorDialog = (error, message) => dialog('alert', {
@@ -625,6 +636,7 @@ const createApplication = (core, proc) => {
   const createRows = listViewRowFactory(core, proc);
   const createMounts = mountViewRowsFactory(core);
   const {draggable} = core.make('osjs/dnd');
+  const statusMessage = formatStatusMessage(core);
 
   const initialState = {
     path: '',
@@ -692,7 +704,7 @@ const createApplication = (core, proc) => {
 
       return {
         path,
-        status: formatStatusMessage(path, list),
+        status: statusMessage(path, list),
         mountview: Object.assign({}, mountview, {
           rows: createMounts()
         }),
