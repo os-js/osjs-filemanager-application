@@ -164,7 +164,8 @@ const mountViewRowsFactory = (core) => {
  * File view columns Factory
  */
 const listViewColumnFactory = (core, proc) => {
-  const {translate: _} = core.make('osjs/locale');
+  const {translate: _, translatable} = core.make('osjs/locale');
+  const __ = translatable(translations);
 
   return () => {
     const columns = [{
@@ -176,7 +177,7 @@ const listViewColumnFactory = (core, proc) => {
 
     if (proc.settings.showDate) {
       columns.push({
-        label: _('LBL_DATE')
+        label: __('LBL_DATE')
       });
     }
 
