@@ -28,6 +28,8 @@
  * @licence Simplified BSD License
  */
 
+// TODO: Check if host-system:/ '..' is an issue here
+
 import osjs from 'osjs';
 import {h, app} from 'hyperapp';
 
@@ -852,7 +854,7 @@ const createProcess = (core, args, options, metadata) => {
       .catch(error => console.warn(error));
   };
 
-  // proc.on('osjs:filemanager:remote', onSettingsUpdate);
+  proc.on('osjs:filemanager:remote', onSettingsUpdate);
   proc.on('filemanager:setting', onSetting);
 
   return proc;
