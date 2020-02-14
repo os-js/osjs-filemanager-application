@@ -409,15 +409,15 @@ const dialogFactory = (core, proc, win) => {
   }, cb);
 
   const mkdirDialog = (action, currentPath) => dialog('prompt', {
-    message: 'Create new directory',
-    value: 'New directory'
+    message: __('DIALOG_MKDIR_MESSAGE'),
+    value: __('DIALOG_MKDIR_PLACEHOLDER')
   }, usingPositiveButton(value => {
     const newPath = pathJoin(currentPath.path, value);
     action(() => vfs.mkdir({path: newPath}), value, __('MSG_MKDIR_ERROR'));
   }));
 
   const renameDialog = (action, file) => dialog('prompt', {
-    message: `Rename ${file.filename}`,
+    message: __('DIALOG_RENAME_MESSAGE', file.filename),
     value: file.filename
   }, usingPositiveButton(value => {
     const idx = file.path.lastIndexOf(file.filename);
@@ -427,7 +427,7 @@ const dialogFactory = (core, proc, win) => {
   }));
 
   const deleteDialog = (action, file) => dialog('confirm', {
-    message: `Delete ${file.filename}`
+    message: __('DIALOG_DELETE_MESSAGE', file.filename),
   }, usingPositiveButton(() => {
     action(() => vfs.unlink(file), true, __('MSG_DELETE_ERROR'));
   }));
