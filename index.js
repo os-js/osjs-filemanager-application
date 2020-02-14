@@ -756,12 +756,7 @@ const createWindow = (core, proc) => {
   const vfs = vfsActionFactory(core, proc, win, dialog, state);
   const clipboard = clipboardActionFactory(core, state, vfs);
 
-  const setSetting = (key, value) => {
-    proc.settings[key] = value;
-    proc.saveSettings();
-    vfs.refresh();
-  };
-
+  const setSetting = (key, value) => proc.emit('filemanager:setting', key, value);
   const onTitle = append => win.setTitle(`${title} - ${append}`);
   const onStatus = message => wired.setStatus(message);
   const onRender = () => vfs.readdir(initialPath);
@@ -833,7 +828,6 @@ const createWindow = (core, proc) => {
  * Launches the OS.js application process
  */
 const createProcess = (core, args, options, metadata) => {
-
   const proc = core.make('osjs/application', {
     args,
     metadata,
@@ -842,7 +836,24 @@ const createProcess = (core, args, options, metadata) => {
     })
   });
 
-  createWindow(core, proc);
+  const emitter = proc.emitAll();
+  const win = createWindow(core, proc);
+
+  const onSettingsUpdate = (settings) => {
+    proc.settings = Object.assign({}, proc.settings, settings);
+    win.emit('filemanager:refresh');
+  };
+
+  const onSetting = (key, value) => {
+    onSettingsUpdate({[key]: value});
+
+    proc.saveSettings()
+      .then(() => emitter('osjs:filemanager:remote', proc.settings))
+      .catch(error => console.warn(error));
+  };
+
+  // proc.on('osjs:filemanager:remote', onSettingsUpdate);
+  proc.on('filemanager:setting', onSetting);
 
   return proc;
 };
