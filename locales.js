@@ -10,9 +10,9 @@ export const en_EN = {
   DIALOG_MKDIR_PLACEHOLDER: 'New directory',
   DIALOG_RENAME_MESSAGE: 'Rename {0} ?',
   DIALOG_DELETE_MESSAGE: 'Delete {0} ?',
-  MSG_ERROR: 'An error occured',
+  MSG_ERROR: 'An error occurred',
   MSG_UPLOAD_ERROR: 'Failed to upload file(s)',
-  MSG_READDIR_ERROR: 'An error occured while reading directory: {0}',
+  MSG_READDIR_ERROR: 'An error occurred while reading directory: {0}',
   MSG_PASTE_ERROR: 'Failed to paste file(s)',
   MSG_MKDIR_ERROR: 'Failed to create directory',
   MSG_RENAME_ERROR: 'Failed to rename',
@@ -41,9 +41,24 @@ export const nb_NO = {
 };
 
 export const vi_VN = {
-  LBL_SHOW_HIDDEN_FILES: 'Hiện các tập tin ẩn',
+  LBL_SHOW_HIDDEN_FILES: 'Hiển thị tập tin ẩn',
   LBL_MINIMALISTIC: 'Tối giản',
-  LBL_OPEN_WITH: 'Mở bằng...'
+  LBL_OPEN_WITH: 'Mở bằng...',
+  LBL_SHOW_DATE: 'Hiện cột thời gian',
+  LBL_STATUS: '{0} thư mục, {1} tập tin, tổng dung lượng {2} bytes',
+  LBL_DATE: 'Thời gian',
+  LBL_LOADING: 'Đang tải {0}',
+  DIALOG_MKDIR_MESSAGE: 'Tạo thư mục mới',
+  DIALOG_MKDIR_PLACEHOLDER: 'Thư mục mới',
+  DIALOG_RENAME_MESSAGE: 'Đổi tên {0} ?',
+  DIALOG_DELETE_MESSAGE: 'Xoá {0} ?',
+  MSG_ERROR: 'Đã xảy ra lỗi',
+  MSG_UPLOAD_ERROR: 'Không thể tải lên tập tin',
+  MSG_READDIR_ERROR: 'Đã xảy ra lỗi trong khi đọc thư mục: {0}',
+  MSG_PASTE_ERROR: 'Không thể dán tập tin',
+  MSG_MKDIR_ERROR: 'Không thể tạo thư mục',
+  MSG_RENAME_ERROR: 'Không thể đổi tên',
+  MSG_DELETE_ERROR: 'Không thể xóa'
 };
 
 export const pt_BR = {
