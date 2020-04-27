@@ -81,3 +81,24 @@ export const pt_BR = {
   MSG_RENAME_ERROR: 'Falha ao renomear',
   MSG_DELETE_ERROR: 'Falha ao deletar'
 };
+
+export const fr_FR = {
+  LBL_SHOW_HIDDEN_FILES: 'Afficher les fichiers cachés',
+  LBL_MINIMALISTIC: 'Minimaliste',
+  LBL_OPEN_WITH: 'Ouvrir avec...',
+  LBL_SHOW_DATE: 'Affichier la colonne date',
+  LBL_STATUS: '{0} dossiers, {1} fichiers, {2} bytes au total',
+  LBL_DATE: 'Date', // FIXME: Move to client
+  LBL_LOADING: 'Chargement en cours {0}',
+  DIALOG_MKDIR_MESSAGE: 'Créer nouveau dossier',
+  DIALOG_MKDIR_PLACEHOLDER: 'Nouveau dossier',
+  DIALOG_RENAME_MESSAGE: 'Renommer {0} ?',
+  DIALOG_DELETE_MESSAGE: 'Supprimer {0} ?',
+  MSG_ERROR: 'Une erreur est survenue',
+  MSG_UPLOAD_ERROR: 'Echec du chargement du(des) fichier(s)',
+  MSG_READDIR_ERROR: 'Une erreur est survenue lors de la lecture du répertoire : {0}',
+  MSG_PASTE_ERROR: 'Impossible de coller le(s) file(s)',
+  MSG_MKDIR_ERROR: 'Impossible de créer le répertoire',
+  MSG_RENAME_ERROR: 'Echec du renommage',
+  MSG_DELETE_ERROR: 'Echec de la suppression'
+};
