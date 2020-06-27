@@ -128,7 +128,9 @@ const createInitialPaths = (core, proc) => {
 /**
  * Formats file status message
  */
-const formatFileMessage = file => `${file.filename} (${file.size} bytes)`;
+const formatFileMessage = files => files
+  .map(file => `${file.filename} (${file.size} bytes)`)
+  .join(', ');
 
 /**
  * Formats directory status message
@@ -332,7 +334,7 @@ const vfsActionFactory = (core, proc, win, dialog, state) => {
     } catch (error) {
       dialog('error', error, __('MSG_READDIR_ERROR', dir.path));
     } finally {
-      state.currentFile = undefined;
+      state.currentFile = [];
       win.setState('loading', false);
     }
   };
@@ -659,7 +661,8 @@ const createApplication = (core, proc) => {
     }),
 
     fileview: listView.state({
-      columns: []
+      columns: [],
+      multiselect: true
     })
   };
 
@@ -696,12 +699,12 @@ const createApplication = (core, proc) => {
     setStatus: status => ({status}),
     setMinimalistic: minimalistic => ({minimalistic}),
     setList: ({list, path, selectFile}) => ({fileview, mountview}) => {
-      let selectedIndex;
+      let selectedIndex = [];
 
       if (selectFile) {
         const foundIndex = list.findIndex(file => file.filename === selectFile);
         if (foundIndex !== -1) {
-          selectedIndex = foundIndex;
+          selectedIndex = [foundIndex];
         }
       }
 
@@ -725,7 +728,7 @@ const createApplication = (core, proc) => {
 
     fileview: listView.actions({
       select: ({data}) => win.emit('filemanager:select', data),
-      activate: ({data}) => win.emit(`filemanager:${data.isFile ? 'open' : 'navigate'}`, data),
+      activate: ({data}) => data.forEach(d => win.emit(`filemanager:${d.isFile ? 'open' : 'navigate'}`, d)),
       contextmenu: args => win.emit('filemanager:contextmenu', args),
       created: ({el, data}) => {
         if (data.isFile) {
@@ -747,7 +750,7 @@ const createApplication = (core, proc) => {
  */
 const createWindow = (core, proc) => {
   let wired;
-  const state = {currentFile: undefined, currentPath: undefined};
+  const state = {currentFile: [], currentPath: undefined};
   const {homePath, initialPath} = createInitialPaths(core, proc);
 
   const title = core.make('osjs/locale').translatableFlat(proc.metadata.title);
@@ -766,8 +769,8 @@ const createWindow = (core, proc) => {
   const onDrop = (...args) => vfs.drop(...args);
   const onHome = () => vfs.readdir(homePath, 'clear');
   const onNavigate = (...args) => vfs.readdir(...args);
-  const onSelectItem = file => (state.currentFile = file);
-  const onSelectStatus = file => win.emit('filemanager:status', formatFileMessage(file));
+  const onSelectItem = files => (state.currentFile = files);
+  const onSelectStatus = files => win.emit('filemanager:status', formatFileMessage(files));
   const onContextMenu = ({ev, data}) => createMenu({ev, name: 'edit'}, data, true);
   const onReaddirRender = args => wired.setList(args);
   const onRefresh = (...args) => vfs.refresh(...args);
