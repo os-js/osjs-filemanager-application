@@ -345,29 +345,36 @@ const vfsActionFactory = (core, proc, win, dialog, state) => {
       .catch(error => dialog('error', error, __('MSG_UPLOAD_ERROR')));
   });
 
-  const paste = (move, currentPath) => ({item, callback}) => {
-    const dest = {path: pathJoin(currentPath.path, item.filename)};
+  const paste = (move, currentPath) => ({items, callback}) => {
+    const promises = items.map((item) => {
+      const dest = {
+        path: pathJoin(currentPath.path, item.filename)
+      };
 
-    const fn = move
-      ? vfs.move(item, dest)
-      : vfs.copy(item, dest);
+      return move
+        ? vfs.move(item, dest)
+        : vfs.copy(item, dest);
+    });
 
-    return fn
-      .then(() => {
+    return Promise
+      .all(promises)
+      .then((results) => {
         refresh(true);
 
         if (typeof callback === 'function') {
           callback();
         }
+
+        return results;
       })
       .catch(error => dialog('error', error, __('MSG_PASTE_ERROR')));
   };
 
   return {
-    download: file => vfs.download(file),
+    download: files => files.forEach(file => vfs.download(file)),
+    action,
     upload,
     refresh,
-    action,
     drop,
     readdir,
     paste
@@ -380,10 +387,10 @@ const vfsActionFactory = (core, proc, win, dialog, state) => {
 const clipboardActionFactory = (core, state, vfs) => {
   const clipboard = core.make('osjs/clipboard');
 
-  const set = item => clipboard.set(({item}), 'filemanager:copy');
+  const set = items => clipboard.set(({items}), 'filemanager:copy');
 
-  const cut = item => clipboard.set(({
-    item,
+  const cut = items => clipboard.set(({
+    items,
     callback: () => vfs.refresh(true)
   }), 'filemanager:move');
 
@@ -420,7 +427,7 @@ const dialogFactory = (core, proc, win) => {
     action(() => vfs.mkdir({path: newPath}), value, __('MSG_MKDIR_ERROR'));
   }));
 
-  const renameDialog = (action, file) => dialog('prompt', {
+  const renameDialog = (action, files) => files.forEach(file => dialog('prompt', {
     message: __('DIALOG_RENAME_MESSAGE', file.filename),
     value: file.filename
   }, usingPositiveButton(value => {
@@ -428,12 +435,12 @@ const dialogFactory = (core, proc, win) => {
     const newPath = file.path.substr(0, idx) + value;
 
     action(() => vfs.rename(file, {path: newPath}), value, __('MSG_RENAME_ERROR'));
-  }));
+  })));
 
-  const deleteDialog = (action, file) => dialog('confirm', {
-    message: __('DIALOG_DELETE_MESSAGE', file.filename),
+  const deleteDialog = (action, files) => dialog('confirm', {
+    message: __('DIALOG_DELETE_MESSAGE', files.map(f => f.filename).join(', ')),
   }, usingPositiveButton(() => {
-    action(() => vfs.unlink(file), true, __('MSG_DELETE_ERROR'));
+    action(() => Promise.all(files.map(f => vfs.unlink(f))), true, __('MSG_DELETE_ERROR'));
   }));
 
   const errorDialog = (error, message) => dialog('alert', {
@@ -476,40 +483,42 @@ const menuFactory = (core, proc, win) => {
     {label: _('LBL_QUIT'), onclick: () => win.emit('filemanager:menu:quit')}
   ]);
 
-  const createEditMenu = (item, isContextMenu) => {
-    const emitter = name => win.emit(name, item);
+  const createEditMenu = (items, isContextMenu) => {
+    console.log(items)
+    const emitter = name => win.emit(name, items);
+    const item = items[items.length - 1];
 
-    if (item && isSpecialFile(item.filename)) {
+    if (items.length === 1 && item && isSpecialFile(item.filename)) {
       return [{
         label: _('LBL_GO'),
         onclick: () => emitter('filemanager:navigate')
       }];
     }
 
-    const isValidFile = item && !isSpecialFile(item.filename);
-    const isDirectory = item && item.isDirectory;
+    const canDownload = items.some(i => !i.isDirectory && !isSpecialFile(i.filename));
+    const hasValidFile = items.some(i => !isSpecialFile(i.filename));
 
-    const openMenu = isDirectory ? [{
+    const openMenu = items.length === 1 && item.isDirectory ? [{
       label: _('LBL_GO'),
-      disabled: !item,
+      disabled: !items.length,
       onclick: () => emitter('filemanager:navigate')
     }] : [{
       label: _('LBL_OPEN'),
-      disabled: !item,
+      disabled: !items.length,
       onclick: () => emitter('filemanager:open')
     }, {
       label: __('LBL_OPEN_WITH'),
-      disabled: !item,
+      disabled: !items.length,
       onclick: () => emitter('filemanager:openWith')
     }];
 
     const clipboardMenu = [{
       label: _('LBL_COPY'),
-      disabled: !isValidFile,
+      disabled: !hasValidFile,
       onclick: () => emitter('filemanager:menu:copy')
     }, {
       label: _('LBL_CUT'),
-      disabled: !isValidFile,
+      disabled: !hasValidFile,
       onclick: () => emitter('filemanager:menu:cut')
     }];
 
@@ -525,18 +534,18 @@ const menuFactory = (core, proc, win) => {
       ...openMenu,
       {
         label: _('LBL_RENAME'),
-        disabled: !isValidFile,
+        disabled: !hasValidFile,
         onclick: () => emitter('filemanager:menu:rename')
       },
       {
         label: _('LBL_DELETE'),
-        disabled: !isValidFile,
+        disabled: !hasValidFile,
         onclick: () => emitter('filemanager:menu:delete')
       },
       ...clipboardMenu,
       {
         label: _('LBL_DOWNLOAD'),
-        disabled: !item || isDirectory || !isValidFile,
+        disabled: !canDownload,
         onclick: () => emitter('filemanager:menu:download')
       }
     ];
@@ -774,8 +783,8 @@ const createWindow = (core, proc) => {
   const onContextMenu = ({ev, data}) => createMenu({ev, name: 'edit'}, data, true);
   const onReaddirRender = args => wired.setList(args);
   const onRefresh = (...args) => vfs.refresh(...args);
-  const onOpen = file => core.open(file, {useDefault: true});
-  const onOpenWith = file => core.open(file, {useDefault: true, forceDialog: true});
+  const onOpen = files => files.forEach(file => core.open(file, {useDefault: true}));
+  const onOpenWith = files => files.forEach(file => core.open(file, {useDefault: true, forceDialog: true}));
   const onHistoryPush = file => wired.history.push(file);
   const onHistoryClear = () => wired.history.clear();
   const onMenu = (props, args) => createMenu(props, args || state.currentFile);
@@ -786,11 +795,11 @@ const createWindow = (core, proc) => {
   const onMenuToggleMinimalistic = () => wired.toggleMinimalistic();
   const onMenuShowDate = () => setSetting('showDate', !proc.settings.showDate);
   const onMenuShowHidden = () => setSetting('showHiddenFiles', !proc.settings.showHiddenFiles);
-  const onMenuRename = file => dialog('rename', vfs.action, file);
-  const onMenuDelete = file => dialog('delete', vfs.action, file);
-  const onMenuDownload = (...args) => vfs.download(...args);
-  const onMenuCopy = item => clipboard.set(item);
-  const onMenuCut = item => clipboard.cut(item);
+  const onMenuRename = files => dialog('rename', vfs.action, files);
+  const onMenuDelete = files => dialog('delete', vfs.action, files);
+  const onMenuDownload = files => vfs.download(files);
+  const onMenuCopy = items => clipboard.set(items);
+  const onMenuCut = items => clipboard.cut(items);
   const onMenuPaste = () => clipboard.paste();
 
   return win
