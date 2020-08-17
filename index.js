@@ -258,9 +258,11 @@ const vfsActionFactory = (core, proc, win, dialog, state) => {
 
   const refresh = (fileOrWatch) => {
     // FIXME This should be implemented a bit better
+    /*
     if (fileOrWatch === true && core.config('vfs.watch')) {
       return;
     }
+    */
 
     win.emit('filemanager:navigate', state.currentPath, undefined, fileOrWatch);
   };
@@ -283,7 +285,7 @@ const vfsActionFactory = (core, proc, win, dialog, state) => {
 
   const writeRelative = f => vfs.writefile({
     path: pathJoin(state.currentPath.path, f.name)
-  }, f);
+  }, f, {pid: proc.pid});
 
   const uploadBrowserFiles = (files) => {
     Promise.all(files.map(writeRelative))
@@ -294,7 +296,7 @@ const vfsActionFactory = (core, proc, win, dialog, state) => {
   const uploadVirtualFile = (data) => {
     const dest = {path: pathJoin(state.currentPath.path, data.filename)};
     if (dest.path !== data.path) {
-      action(() => vfs.copy(data, dest), true, __('MSG_UPLOAD_ERROR'));
+      action(() => vfs.copy(data, dest, {pid: proc.pid}), true, __('MSG_UPLOAD_ERROR'));
     }
   };
 
@@ -347,8 +349,8 @@ const vfsActionFactory = (core, proc, win, dialog, state) => {
     const dest = {path: pathJoin(currentPath.path, item.filename)};
 
     const fn = move
-      ? vfs.move(item, dest)
-      : vfs.copy(item, dest);
+      ? vfs.move(item, dest, {pid: proc.pid})
+      : vfs.copy(item, dest, {pid: proc.pid});
 
     return fn
       .then(() => {
@@ -382,7 +384,7 @@ const clipboardActionFactory = (core, state, vfs) => {
 
   const cut = item => clipboard.set(({
     item,
-    callback: () => vfs.refresh(true)
+    callback: () => core.config('vfs.watch') ? undefined : vfs.refresh(true)
   }), 'filemanager:move');
 
   const paste = () => {
@@ -415,7 +417,7 @@ const dialogFactory = (core, proc, win) => {
     value: __('DIALOG_MKDIR_PLACEHOLDER')
   }, usingPositiveButton(value => {
     const newPath = pathJoin(currentPath.path, value);
-    action(() => vfs.mkdir({path: newPath}), value, __('MSG_MKDIR_ERROR'));
+    action(() => vfs.mkdir({path: newPath}, {pid: proc.pid}), value, __('MSG_MKDIR_ERROR'));
   }));
 
   const renameDialog = (action, file) => dialog('prompt', {
@@ -431,7 +433,7 @@ const dialogFactory = (core, proc, win) => {
   const deleteDialog = (action, file) => dialog('confirm', {
     message: __('DIALOG_DELETE_MESSAGE', file.filename),
   }, usingPositiveButton(() => {
-    action(() => vfs.unlink(file), true, __('MSG_DELETE_ERROR'));
+    action(() => vfs.unlink(file, {pid: proc.pid}), true, __('MSG_DELETE_ERROR'));
   }));
 
   const errorDialog = (error, message) => dialog('alert', {
@@ -856,6 +858,21 @@ const createProcess = (core, args, options, metadata) => {
 
   proc.on('osjs:filemanager:remote', onSettingsUpdate);
   proc.on('filemanager:setting', onSetting);
+
+  const listener = (args) => {
+    if (args.pid === proc.pid) {
+      return;
+    }
+
+    const currentPath = String(proc.args.path.path).replace(/\/$/, '');
+    const watchPath = String(args.path).replace(/\/$/, '');
+    if (currentPath === watchPath) {
+      win.emit('filemanager:refresh');
+    }
+  };
+
+  core.on('osjs/vfs:directoryChanged', listener);
+  proc.on('destroy', () => core.off('osjs/vfs:directoryChanged', listener));
 
   return proc;
 };
