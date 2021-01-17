@@ -470,13 +470,30 @@ const menuFactory = (core, proc, win) => {
   const __ = translatable(translations);
   const getMountpoints = () => fs.mountpoints(true);
 
+  const menuItemsFromMiddleware = async (type, middlewareArgs) => {
+    if (!core.has('osjs/middleware')) {
+      return [];
+    }
+
+    const items = core.make('osjs/middleware')
+      .get(`osjs/filemanager:menu:${type}`);
+
+    const promises = items.map(fn => fn(middlewareArgs));
+
+    const resolved = await Promise.all(promises);
+    const result = resolved
+      .filter(items => items instanceof Array);
+
+    return [].concat(...result);
+  };
+
   const createFileMenu = () => ([
     {label: _('LBL_UPLOAD'), onclick: () => win.emit('filemanager:menu:upload')},
     {label: _('LBL_MKDIR'), onclick: () => win.emit('filemanager:menu:mkdir')},
     {label: _('LBL_QUIT'), onclick: () => win.emit('filemanager:menu:quit')}
   ]);
 
-  const createEditMenu = (item, isContextMenu) => {
+  const createEditMenu = async (item, isContextMenu) => {
     const emitter = name => win.emit(name, item);
 
     if (item && isSpecialFile(item.filename)) {
@@ -521,6 +538,8 @@ const menuFactory = (core, proc, win) => {
       });
     }
 
+    const appendItems = await menuItemsFromMiddleware('edit', {file: item, isContextMenu});
+
     return [
       ...openMenu,
       {
@@ -538,7 +557,8 @@ const menuFactory = (core, proc, win) => {
         label: _('LBL_DOWNLOAD'),
         disabled: !item || isDirectory || !isValidFile,
         onclick: () => emitter('filemanager:menu:download')
-      }
+      },
+      ...appendItems
     ];
   };
 
@@ -562,10 +582,10 @@ const menuFactory = (core, proc, win) => {
     go: createGoMenu
   };
 
-  return ({name, ev}, args, isContextMenu = false) => {
+  return async ({name, ev}, args, isContextMenu = false) => {
     if (menuItems[name]) {
       contextmenu.show({
-        menu: menuItems[name](args, isContextMenu),
+        menu: await menuItems[name](args, isContextMenu),
         position: isContextMenu ? ev : ev.target
       });
     } else {
