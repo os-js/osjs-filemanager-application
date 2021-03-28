@@ -102,3 +102,24 @@ export const fr_FR = {
   MSG_RENAME_ERROR: 'Echec du renommage',
   MSG_DELETE_ERROR: 'Echec de la suppression'
 };
+
+export const tr_TR = {
+  LBL_SHOW_HIDDEN_FILES: 'Gizli dosyaları göster',
+  LBL_MINIMALISTIC: 'Minimalist',
+  LBL_OPEN_WITH: 'Şununla aç:',
+  LBL_SHOW_DATE: 'Tarih sütununu göster',
+  LBL_STATUS: 'toplamda {0} dizin, {1} dosya, {2} byte var',
+  LBL_DATE: 'Tarih', // FIXME: Move to client
+  LBL_LOADING: 'Yükleniyor {0}',
+  DIALOG_MKDIR_MESSAGE: 'Yeni dizin oluştur',
+  DIALOG_MKDIR_PLACEHOLDER: 'Yeni dizin',
+  DIALOG_RENAME_MESSAGE: '{0} ismi değişsin mi?',
+  DIALOG_DELETE_MESSAGE: '{0} silinsin mi?',
+  MSG_ERROR: 'Bir hata oldu',
+  MSG_UPLOAD_ERROR: 'Dosya(lar)ın yüklenmesi işlemi başarısız',
+  MSG_READDIR_ERROR: 'Belirtilen dizin okunurken bir hata oluştu: {0}',
+  MSG_PASTE_ERROR: 'Dosya(lar)ın yapıştırılması işlemi başarısız',
+  MSG_MKDIR_ERROR: 'Dizin oluşturma işlemi başarısız',
+  MSG_RENAME_ERROR: 'Yeniden adlandırma işlemi başarısız',
+  MSG_DELETE_ERROR: 'Silme işlemi başarısız'
+};
