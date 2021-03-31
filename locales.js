@@ -19,6 +19,27 @@ export const en_EN = {
   MSG_DELETE_ERROR: 'Failed to delete'
 };
 
+export const sv_SE = {
+  LBL_SHOW_HIDDEN_FILES: 'Visa dölda filer',
+  LBL_MINIMALISTIC: 'Minimalistic',
+  LBL_OPEN_WITH: 'Öppna med...',
+  LBL_SHOW_DATE: 'Visa datumkolumn',
+  LBL_STATUS: '{0} kataloger, {1} filer, {2} byte totalt',
+  LBL_DATE: 'Datum', // FIXME: Move to client
+  LBL_LOADING: 'Laddar {0}',
+  DIALOG_MKDIR_MESSAGE: 'Skapa ny katalog',
+  DIALOG_MKDIR_PLACEHOLDER: 'Ny katalog',
+  DIALOG_RENAME_MESSAGE: 'Döp om {0} ?',
+  DIALOG_DELETE_MESSAGE: 'Radera {0} ?',
+  MSG_ERROR: 'Ett fel uppstod',
+  MSG_UPLOAD_ERROR: 'Det gick inte att ladda upp filer(na)',
+  MSG_READDIR_ERROR: 'Ett fel uppstod när katalogen lästes: {0}',
+  MSG_PASTE_ERROR: 'Det gick inte att klistra in fil(erna)',
+  MSG_MKDIR_ERROR: 'Det gick inte att skapa katalogen',
+  MSG_RENAME_ERROR: 'Det gick inte att byta namn',
+  MSG_DELETE_ERROR: 'Det gick inte att ta bort'
+};
+
 export const nb_NO = {
   LBL_SHOW_HIDDEN_FILES: 'Vis skjulte filer',
   LBL_MINIMALISTIC: 'Minimalistisk',
