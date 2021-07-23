@@ -420,9 +420,9 @@ const dialogFactory = (core, proc, win) => {
   const {translatable} = core.make('osjs/locale');
   const __ = translatable(translations);
 
-  const dialog = (name, args, cb) => core.make('osjs/dialog', name, args, {
+  const dialog = (name, args, cb, modal = true) => core.make('osjs/dialog', name, args, {
     parent: win,
-    attributes: {modal: true}
+    attributes: {modal}
   }, cb);
 
   const mkdirDialog = (action, currentPath) => dialog('prompt', {
@@ -452,7 +452,7 @@ const dialogFactory = (core, proc, win) => {
   const progressDialog = (file) => dialog('progress', {
     message: __('DIALOG_PROGRESS_MESSAGE', file.name),
     buttons: []
-  }, () => {});
+  }, () => {}, false);
 
   const errorDialog = (error, message) => dialog('alert', {
     type: 'error',
