@@ -283,9 +283,19 @@ const vfsActionFactory = (core, proc, win, dialog, state) => {
     return [];
   };
 
-  const writeRelative = f => vfs.writefile({
-    path: pathJoin(state.currentPath.path, f.name)
-  }, f, {pid: proc.pid});
+  const writeRelative = f => {
+    const d = dialog('progress', f);
+
+    return vfs.writefile({
+      path: pathJoin(state.currentPath.path, f.name)
+    }, f, {
+      pid: proc.pid,
+      onProgress: (ev, p) => d.setProgress(p)
+    }).then((result) => {
+      d.destroy();
+      return result;
+    });
+  };
 
   const uploadBrowserFiles = (files) => {
     Promise.all(files.map(writeRelative))
@@ -436,6 +446,11 @@ const dialogFactory = (core, proc, win) => {
     action(() => vfs.unlink(file, {pid: proc.pid}), true, __('MSG_DELETE_ERROR'));
   }));
 
+  const progressDialog = (file) => dialog('progress', {
+    message: __('DIALOG_PROGRESS_MESSAGE', file.name),
+    buttons: []
+  }, () => {});
+
   const errorDialog = (error, message) => dialog('alert', {
     type: 'error',
     error,
@@ -446,12 +461,13 @@ const dialogFactory = (core, proc, win) => {
     mkdir: mkdirDialog,
     rename: renameDialog,
     delete: deleteDialog,
+    progress: progressDialog,
     error: errorDialog
   };
 
   return (name, ...args) => {
     if (dialogs[name]) {
-      dialogs[name](...args);
+      return dialogs[name](...args);
     } else {
       throw new Error(`Invalid dialog: ${name}`);
     }

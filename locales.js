@@ -10,6 +10,7 @@ export const en_EN = {
   DIALOG_MKDIR_PLACEHOLDER: 'New directory',
   DIALOG_RENAME_MESSAGE: 'Rename {0} ?',
   DIALOG_DELETE_MESSAGE: 'Delete {0} ?',
+  DIALOG_PROGRESS_MESSAGE: 'Uploading {0}...',
   MSG_ERROR: 'An error occurred',
   MSG_UPLOAD_ERROR: 'Failed to upload file(s)',
   MSG_READDIR_ERROR: 'An error occurred while reading directory: {0}',
