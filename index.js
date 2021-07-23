@@ -294,6 +294,9 @@ const vfsActionFactory = (core, proc, win, dialog, state) => {
     }).then((result) => {
       d.destroy();
       return result;
+    }).catch((error) => {
+      d.destroy();
+      throw error;
     });
   };
 
