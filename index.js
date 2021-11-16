@@ -49,6 +49,75 @@ import {
 } from '@osjs/gui';
 
 /**
+ * Check if current path is at mountpoint
+ */
+const checkMountPoint = dir => dir.split(':/').splice(1).join(':/');
+
+/**
+ * Update some state properties when selected directory/file changed
+ */
+const updateState = (state) => {
+  state.currentList = [];
+  state.currentPage = 0;
+  state.fetchAllPages = false;
+  state.currentLastItem = '';
+};
+
+/**
+ * Remove duplicate file objects if there is any
+ */
+const removeDuplicates = (list) => {
+  const filenameSet = new Set();
+  return list.filter((obj) => {
+    const isPresent = filenameSet.has(obj.filename);
+    filenameSet.add(obj.filename);
+    return !isPresent;
+  });
+};
+
+/**
+ * Detect pagination capability when selected mountpoint changed
+ */
+const getMountPointCapability = (core, path) => {
+  const vfs = core.make('osjs/vfs');
+  return vfs.capabilities(path);
+};
+
+/**
+ * Create files list by concating new page by previous fetched pages
+ */
+const createPagesList = async (proc, state, vfs, dir) => {
+  const options = {
+    showHiddenFiles: proc.settings.showHiddenFiles,
+    page:{
+      size: state.capability.page_size,
+      number: state.currentPage,
+      marker: state.currentLastItem,
+      token: ''
+    }
+  };
+
+  let list = await vfs.readdir(dir, options);
+  state.currentLastItem = list[list.length - 1].filename;
+  list = state.currentList.concat(list);
+  state.currentList = removeDuplicates(list);
+  if(state.currentList.length === state.totalCount) {
+    state.fetchAllPages = true;
+  }
+  return state.currentList;
+};
+
+/**
+ * Create total list of files when pagination is not supported
+ */
+const createTotalList = (proc, vfs, dir) => {
+  const options = {
+    showHiddenFiles: proc.settings.showHiddenFiles
+  };
+  return vfs.readdir(dir, options);
+};
+
+/**
  * Creates default settings
  */
 const createDefaultSettings =  () => ({
@@ -133,16 +202,12 @@ const formatFileMessage = file => `${file.filename} (${file.size} bytes)`;
 /**
  * Formats directory status message
  */
-const formatStatusMessage = (core) => {
+const formatStatusMessage = (core, state) => {
   const {translatable} = core.make('osjs/locale');
   const __ = translatable(translations);
 
   return (path, files) => {
-    const directoryCount = files.filter(f => f.isDirectory).length;
-    const fileCount = files.filter(f => !f.isDirectory).length;
-    const totalSize = files.reduce((t, f) => t + (f.size || 0), 0);
-
-    return __('LBL_STATUS', directoryCount, fileCount, totalSize);
+    return __('LBL_STATUS', files.length, state.totalCount, state.totalSize);
   };
 };
 
@@ -152,13 +217,12 @@ const formatStatusMessage = (core) => {
 const mountViewRowsFactory = (core) => {
   const fs = core.make('osjs/fs');
   const getMountpoints = () => fs.mountpoints(true);
-
   return () => getMountpoints().map(m => ({
     columns: [{
       icon: m.icon,
       label: m.label
     }],
-    data: m
+    data: m,
   }));
 };
 
@@ -320,18 +384,38 @@ const vfsActionFactory = (core, proc, win, dialog, state) => {
       return;
     }
 
-    try {
-      const message = __('LBL_LOADING', dir.path);
+    if(Object.keys(state.capability).length === 0) {
+      state.capability = await getMountPointCapability(core, dir);
+    }
+
+    // if calling by scroll
+    if(dir === undefined) {
+      dir = state.currentPath;
+      state.currentPage += 1;
+    // else if mountpoint/directory is selcted
+    } else {
       const options = {
         showHiddenFiles: proc.settings.showHiddenFiles
       };
+      const stat = await vfs.stat(dir, options);
+      state.totalCount = stat.totalCount;
+      checkMountPoint(dir.path) !== '' ? state.totalCount += 1 : null;
+      state.totalSize = stat.totalSize;
+    }
 
+    try {
+      const message = __('LBL_LOADING', dir.path);
       win.setState('loading', true);
       win.emit('filemanager:status', message);
-
-      const list = await vfs.readdir(dir, options);
+      let list;
+      if(state.capability.pagination) {
+        list = await createPagesList(proc, state, vfs, dir);
+      }else {
+        list = await createTotalList(proc, vfs, dir);
+      }
 
       // NOTE: This sets a restore argument in the application session
+
       proc.args.path = dir;
 
       state.currentPath = dir;
@@ -675,12 +759,12 @@ const createView = (core, proc, win) => {
 /**
  * Creates a new FileManager user interface
  */
-const createApplication = (core, proc) => {
+const createApplication = (core, proc, state) => {
   const createColumns = listViewColumnFactory(core, proc);
   const createRows = listViewRowFactory(core, proc);
   const createMounts = mountViewRowsFactory(core);
   const {draggable} = core.make('osjs/dnd');
-  const statusMessage = formatStatusMessage(core);
+  const statusMessage = formatStatusMessage(core, state);
 
   const initialState = {
     path: '',
@@ -761,16 +845,35 @@ const createApplication = (core, proc) => {
     },
 
     mountview: listView.actions({
-      select: ({data}) => win.emit('filemanager:navigate', {path: data.root})
+      select: async ({data}) => {
+        await updateState(state);
+        state.capability = await getMountPointCapability(core, data.root);
+        win.emit('filemanager:navigate', {path: data.root});
+      }
     }),
 
     fileview: listView.actions({
       select: ({data}) => win.emit('filemanager:select', data),
-      activate: ({data}) => win.emit(`filemanager:${data.isFile ? 'open' : 'navigate'}`, data),
+      activate: async ({data}) => {
+        data.isDirectory ? await updateState(state) : null;
+        win.emit(`filemanager:${data.isFile ? 'open' : 'navigate'}`, data);
+      },
       contextmenu: args => win.emit('filemanager:contextmenu', args),
       created: ({el, data}) => {
         if (data.isFile) {
           draggable(el, {data});
+        }
+      },
+      scroll: (ev) => {
+        if (state.capability.pagination) {
+          if (state.fetchAllPages) {
+            return;
+          }
+          const el = ev.target;
+          const hitBottom = (el.scrollTop + el.offsetHeight) >= el.scrollHeight;
+          if(hitBottom) {
+            win.emit('filemanager:navigate');
+          }
         }
       }
     })
@@ -786,14 +889,24 @@ const createApplication = (core, proc) => {
 /**
  * Creates a new FileManager window
  */
-const createWindow = (core, proc) => {
+const createWindow = async (core, proc) => {
   let wired;
-  const state = {currentFile: undefined, currentPath: undefined};
+  const state = {
+    currentFile: undefined,
+    currentPath: undefined,
+    currentList: [],
+    currentPage:0,
+    fetchAllPages: false,
+    currentLastItem:'',
+    capability:{},
+    totalCount:0,
+    totalSize:0
+  };
   const {homePath, initialPath} = createInitialPaths(core, proc);
 
   const title = core.make('osjs/locale').translatableFlat(proc.metadata.title);
   const win = proc.createWindow(createWindowOptions(core, proc, title));
-  const render = createApplication(core, proc);
+  const render = createApplication(core, proc, state);
   const dialog = dialogFactory(core, proc, win);
   const createMenu = menuFactory(core, proc, win);
   const vfs = vfsActionFactory(core, proc, win, dialog, state);
