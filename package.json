@@ -34,7 +34,7 @@
     "hyperapp": "^1.2.10"
   },
   "devDependencies": {
-    "@osjs/dev-meta": "^1.0.2"
+    "@osjs/dev-meta": "^2.1.0"
   },
   "eslintConfig": {
     "env": {
