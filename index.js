@@ -109,7 +109,7 @@ const triggerBrowserUpload = (cb) => {
 };
 
 /**
- * Checks if given fielname is a dotted
+ * Checks if given filename is a dotted
  */
 const isSpecialFile = filename => ['..', '.'].indexOf(filename) !== -1;
 
