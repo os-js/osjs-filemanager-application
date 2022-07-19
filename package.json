@@ -1,6 +1,6 @@
 {
   "name": "@osjs/filemanager-application",
-  "version": "1.6.2",
+  "version": "1.6.3",
   "description": "OS.js v3 Filemanager Application",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
@@ -34,7 +34,7 @@
     "hyperapp": "^1.2.10"
   },
   "devDependencies": {
-    "@osjs/dev-meta": "^1.0.2"
+    "@osjs/dev-meta": "^2.1.0"
   },
   "eslintConfig": {
     "env": {

@@ -289,7 +289,7 @@ const triggerBrowserUpload = (cb) => {
 };
 
 /**
- * Checks if given fielname is a dotted
+ * Checks if given filename is a dotted
  */
 const isSpecialFile = filename => ['..', '.'].indexOf(filename) !== -1;
 
@@ -769,6 +769,15 @@ const menuFactory = (core, proc, win, state) => {
     }
 
     const appendItems = await menuItemsFromMiddleware('edit', {file: item, isContextMenu});
+    const configuredItems = [];
+
+    if (core.config('filemanager.disableDownload', false) !== true) {
+      configuredItems.push({
+        label: _('LBL_DOWNLOAD'),
+        disabled: !item || isDirectory || !isValidFile,
+        onclick: () => emitter('filemanager:menu:download')
+      });
+    }
 
     return [
       ...openMenu,
@@ -783,11 +792,7 @@ const menuFactory = (core, proc, win, state) => {
         onclick: () => emitter('filemanager:menu:delete')
       },
       ...clipboardMenu,
-      {
-        label: _('LBL_DOWNLOAD'),
-        disabled: !item || isDirectory || !isValidFile,
-        onclick: () => emitter('filemanager:menu:download')
-      },
+      ...configuredItems,
       ...appendItems
     ];
   };

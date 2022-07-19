@@ -31,9 +31,11 @@ module.exports = {
     minimize,
   },
   plugins: [
-    new CopyWebpackPlugin([
-      path.resolve(__dirname, 'icon.png')
-    ]),
+    new CopyWebpackPlugin({
+      patterns: [
+        'icon.png'
+      ]
+    }),
     new MiniCssExtractPlugin({
       filename: '[name].css',
       chunkFilename: '[id].css'
