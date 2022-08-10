@@ -49,6 +49,186 @@ import {
 } from '@osjs/gui';
 
 /**
+ * Get the human file size of n bytes
+ */
+const humanFileSize = (bytes, si = false) => {
+  if (isNaN(bytes) || typeof bytes !== 'number') {
+    bytes = 0;
+  }
+
+  const thresh = si ? 1000 : 1024;
+  const units = si
+    ? ['kB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB']
+    : ['KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB', 'YiB'];
+
+  if (bytes < thresh) {
+    return bytes + ' B';
+  }
+
+  let u = -1;
+  do {
+    bytes /= thresh;
+    ++u;
+  } while (bytes >= thresh);
+
+  return `${bytes.toFixed(1)} ${units[u]}`;
+};
+
+/**
+ * Check if current path is at mountpoint
+ */
+const checkMountPoint = dir => dir.split(':/').splice(1).join(':/');
+
+/**
+ * Create object of file or directory
+ */
+const createFileItem = (item, path) => {
+  let basePath = path.endsWith('/') ? path : path + '/';
+  if(item.filename) {
+    item.path = basePath + item.filename;
+    item.isDirectory ?  item.path += '/' : null;
+    return item;
+  } else if(typeof item === 'string') {
+    return {
+      filename: item,
+      isDirectory:true,
+      isFile:false,
+      humanSize: '4 KiB',
+      size: 4096,
+      path: basePath + item
+    };
+  } else {
+    return {
+      filename: item.name,
+      isDirectory:false,
+      isFile:true,
+      mime: item.type,
+      humanSize: humanFileSize(item.size),
+      size:item.size,
+      path: basePath + item.name
+    };
+  }
+};
+
+/**
+ * Update some state properties when selected directory/file changed
+ */
+const updateState = (state) => {
+  state.currentList = [];
+  state.currentPage = 0;
+  state.fetchAllPages = false;
+  state.currentLastItem = '';
+};
+
+/**
+ * Remove duplicate file objects in file list, if there is any
+ */
+const removeDuplicates = (list) => {
+  const filenameSet = new Set();
+  return list.filter((obj) => {
+    const isPresent = filenameSet.has(obj.filename);
+    filenameSet.add(obj.filename);
+    return !isPresent;
+  });
+};
+
+/**
+ * Detect pagination capability when selected mountpoint changed
+ */
+const getMountPointCapability = (core, path) => {
+  const vfs = core.make('osjs/vfs');
+  return vfs.capabilities(path);
+};
+
+/**
+ * Create files list by concating new page by previous fetched pages
+ */
+const createPagesList = async (proc, state, vfs, dir) => {
+  const options = {
+    showHiddenFiles: proc.settings.showHiddenFiles,
+    page:{
+      size: state.capability.page_size,
+      number: state.currentPage,
+      marker: state.currentLastItem
+    }
+  };
+
+  let list = await vfs.readdir(dir, options);
+  state.currentLastItem = list[list.length - 1].filename;
+  state.currentPage += 1;
+  list = state.currentList.concat(list);
+  state.currentList = removeDuplicates(list);
+  if(state.currentList.length === state.totalCount) {
+    state.fetchAllPages = true;
+  }
+  return state.currentList;
+};
+
+/**
+ * Create total list of files when pagination is not supported
+ */
+const createTotalList = async (proc, state, vfs, dir) => {
+  const options = {
+    showHiddenFiles: proc.settings.showHiddenFiles
+  };
+  state.currentList  = await vfs.readdir(dir, options);
+  return state.currentList;
+};
+
+/**
+ * Add an item to the sorted files list
+ */
+const addToRenderedList = (state, item) => {
+  let list = state.currentList;
+  let len = list.length;
+  let addItem = createFileItem(item, state.currentPath.path);
+  if(len === 0) {
+    list.splice(0, 0, addItem);
+  }else {
+    // FIXME: should support other kinds of sorting like desc, ...
+    for (let i = 0; i < len; i++) {
+      if (addItem.filename === list[i].filename) {
+        list.splice(i, 1, addItem);
+        break;
+      }
+      if (addItem.filename < list[i].filename) {
+        list.splice(i, 0, addItem);
+        break;
+      }
+      if (i === len - 1 && addItem.filename > list[i].filename) {
+        list.splice(i + 1, 0, addItem);
+        break;
+      }
+    }
+  }
+  state.totalSize += addItem.size;
+  state.totalCount += 1;
+};
+
+/**
+ * Remove an item from the sorted files list
+ */
+const removeFromRenderedList = (state, item) => {
+  let index = state.currentList.indexOf(item, 0);
+  state.currentList.splice(index, 1);
+  state.totalCount -= 1;
+  state.totalSize -= item.size;
+};
+
+/**
+ * Rename an item from the sorted files list
+ */
+const renameFromRenderedList = (state, item, name) => {
+  removeFromRenderedList(state, item);
+  item.path = item.path.endsWith('/') ? item.path.slice(0, -1) : item.path;
+  let splitPath = item.path.split('/');
+  let basePath = splitPath.slice(0, splitPath.length - 1).join('/');
+  item.filename = name;
+  item.path = basePath;
+  addToRenderedList(state, item);
+};
+
+/**
  * Creates default settings
  */
 const createDefaultSettings =  () => ({
@@ -133,16 +313,12 @@ const formatFileMessage = file => `${file.filename} (${file.size} bytes)`;
 /**
  * Formats directory status message
  */
-const formatStatusMessage = (core) => {
+const formatStatusMessage = (core, state) => {
   const {translatable} = core.make('osjs/locale');
   const __ = translatable(translations);
 
   return (path, files) => {
-    const directoryCount = files.filter(f => f.isDirectory).length;
-    const fileCount = files.filter(f => !f.isDirectory).length;
-    const totalSize = files.reduce((t, f) => t + (f.size || 0), 0);
-
-    return __('LBL_STATUS', directoryCount, fileCount, totalSize);
+    return __('LBL_STATUS', files.length, state.totalCount, state.totalSize);
   };
 };
 
@@ -152,7 +328,6 @@ const formatStatusMessage = (core) => {
 const mountViewRowsFactory = (core) => {
   const fs = core.make('osjs/fs');
   const getMountpoints = () => fs.mountpoints(true);
-
   return () => getMountpoints().map(m => ({
     columns: [{
       icon: m.icon,
@@ -256,36 +431,46 @@ const vfsActionFactory = (core, proc, win, dialog, state) => {
   const {translatable} = core.make('osjs/locale');
   const __ = translatable(translations);
 
-  const refresh = (fileOrWatch) => {
+  const refresh = ({addElement, removeElement, renameElement, renameString}) => {
+    let selectFile;
+    if(addElement) {
+      selectFile = addElement.name || addElement.filename || addElement;
+      addToRenderedList(state, addElement);
+    } else if(removeElement) {
+      removeFromRenderedList(state, removeElement);
+    } else if(renameElement) {
+      selectFile = renameString;
+      renameFromRenderedList(state, renameElement, renameString);
+    }
+
+    win.emit('filemanager:readdir', {list:state.currentList, path: state.currentPath.path, selectFile});
     // FIXME This should be implemented a bit better
     /*
     if (fileOrWatch === true && core.config('vfs.watch')) {
       return;
     }
     */
-
-    win.emit('filemanager:navigate', state.currentPath, undefined, fileOrWatch);
   };
 
   const action = async (promiseCallback, refreshValue, defaultError) => {
     try {
       win.setState('loading', true);
-
-      const result = await promiseCallback();
-      refresh(refreshValue);
-      return result;
+      promiseCallback().then((result)=>{
+        refreshValue.mkdirString ? refresh({addElement:refreshValue.mkdirString}) :
+          refreshValue.deleteItem ? refresh({removeElement:refreshValue.deleteItem}) :
+            refreshValue.renameItem ? refresh({renameElement:refreshValue.renameItem, renameString: refreshValue.renameString}) : null;
+        return result;
+      });
     } catch (error) {
       dialog('error', error, defaultError || __('MSG_ERROR'));
     } finally {
       win.setState('loading', false);
     }
-
     return [];
   };
 
   const writeRelative = f => {
     const d = dialog('progress', f);
-
     return vfs.writefile({
       path: pathJoin(state.currentPath.path, f.name)
     }, f, {
@@ -302,7 +487,9 @@ const vfsActionFactory = (core, proc, win, dialog, state) => {
 
   const uploadBrowserFiles = (files) => {
     Promise.all(files.map(writeRelative))
-      .then(() => refresh(files[0].name)) // FIXME: Select all ?
+      .then(files.forEach(el => {
+        refresh({addElement:el});
+      }))
       .catch(error => dialog('error', error, __('MSG_UPLOAD_ERROR')));
   };
 
@@ -320,18 +507,37 @@ const vfsActionFactory = (core, proc, win, dialog, state) => {
       return;
     }
 
-    try {
-      const message = __('LBL_LOADING', dir.path);
+    if(Object.keys(state.capability).length === 0) {
+      state.capability = await getMountPointCapability(core, dir);
+    }
+
+    // if calling by scroll
+    if(dir === undefined) {
+      dir = state.currentPath;
+    // else if mountpoint/directory is selected
+    } else {
       const options = {
         showHiddenFiles: proc.settings.showHiddenFiles
       };
+      const stat = await vfs.stat(dir, options);
+      state.totalCount = stat.totalCount;
+      checkMountPoint(dir.path) !== '' ? state.totalCount += 1 : null;
+      state.totalSize = stat.totalSize;
+    }
 
+    try {
+      const message = __('LBL_LOADING', dir.path);
       win.setState('loading', true);
       win.emit('filemanager:status', message);
-
-      const list = await vfs.readdir(dir, options);
+      let list;
+      if(state.capability.pagination) {
+        list = await createPagesList(proc, state, vfs, dir);
+      }else {
+        list = await createTotalList(proc, state, vfs, dir);
+      }
 
       // NOTE: This sets a restore argument in the application session
+
       proc.args.path = dir;
 
       state.currentPath = dir;
@@ -354,7 +560,7 @@ const vfsActionFactory = (core, proc, win, dialog, state) => {
 
   const upload = () => triggerBrowserUpload(files => {
     writeRelative(files[0])
-      .then(() => refresh(files[0].name))
+      .then(() => refresh({addElement: files[0]}))
       .catch(error => dialog('error', error, __('MSG_UPLOAD_ERROR')));
   });
 
@@ -367,7 +573,7 @@ const vfsActionFactory = (core, proc, win, dialog, state) => {
 
     return fn
       .then(() => {
-        refresh(true);
+        refresh({addElement: item});
 
         if (typeof callback === 'function') {
           callback();
@@ -430,7 +636,7 @@ const dialogFactory = (core, proc, win) => {
     value: __('DIALOG_MKDIR_PLACEHOLDER')
   }, usingPositiveButton(value => {
     const newPath = pathJoin(currentPath.path, value);
-    action(() => vfs.mkdir({path: newPath}, {pid: proc.pid}), value, __('MSG_MKDIR_ERROR'));
+    action(() => vfs.mkdir({path: newPath}, {pid: proc.pid}), {mkdirString:value}, __('MSG_MKDIR_ERROR'));
   }));
 
   const renameDialog = (action, file) => dialog('prompt', {
@@ -439,14 +645,13 @@ const dialogFactory = (core, proc, win) => {
   }, usingPositiveButton(value => {
     const idx = file.path.lastIndexOf(file.filename);
     const newPath = file.path.substr(0, idx) + value;
-
-    action(() => vfs.rename(file, {path: newPath}), value, __('MSG_RENAME_ERROR'));
+    action(() => vfs.rename(file, {path: newPath}), {renameItem:file, renameString:value}, __('MSG_RENAME_ERROR'));
   }));
 
   const deleteDialog = (action, file) => dialog('confirm', {
     message: __('DIALOG_DELETE_MESSAGE', file.filename),
   }, usingPositiveButton(() => {
-    action(() => vfs.unlink(file, {pid: proc.pid}), true, __('MSG_DELETE_ERROR'));
+    action(() => vfs.unlink(file, {pid: proc.pid}), {deleteItem:file}, __('MSG_DELETE_ERROR'));
   }));
 
   const progressDialog = (file) => dialog('progress', {
@@ -480,7 +685,7 @@ const dialogFactory = (core, proc, win) => {
 /**
  * Creates Menus
  */
-const menuFactory = (core, proc, win) => {
+const menuFactory = (core, proc, win, state) => {
   const fs = core.make('osjs/fs');
   const clipboard = core.make('osjs/clipboard');
   const contextmenu = core.make('osjs/contextmenu');
@@ -518,7 +723,10 @@ const menuFactory = (core, proc, win) => {
     if (item && isSpecialFile(item.filename)) {
       return [{
         label: _('LBL_GO'),
-        onclick: () => emitter('filemanager:navigate')
+        onclick: async () => {
+          await updateState(state);
+          emitter('filemanager:navigate');
+        }
       }];
     }
 
@@ -528,7 +736,10 @@ const menuFactory = (core, proc, win) => {
     const openMenu = isDirectory ? [{
       label: _('LBL_GO'),
       disabled: !item,
-      onclick: () => emitter('filemanager:navigate')
+      onclick: async () => {
+        await updateState(state);
+        emitter('filemanager:navigate');
+      }
     }] : [{
       label: _('LBL_OPEN'),
       disabled: !item,
@@ -680,12 +891,12 @@ const createView = (core, proc, win) => {
 /**
  * Creates a new FileManager user interface
  */
-const createApplication = (core, proc) => {
+const createApplication = (core, proc, state) => {
   const createColumns = listViewColumnFactory(core, proc);
   const createRows = listViewRowFactory(core, proc);
   const createMounts = mountViewRowsFactory(core);
   const {draggable} = core.make('osjs/dnd');
-  const statusMessage = formatStatusMessage(core);
+  const statusMessage = formatStatusMessage(core, state);
 
   const initialState = {
     path: '',
@@ -743,7 +954,6 @@ const createApplication = (core, proc) => {
     setMinimalistic: minimalistic => ({minimalistic}),
     setList: ({list, path, selectFile}) => ({fileview, mountview}) => {
       let selectedIndex;
-
       if (selectFile) {
         const foundIndex = list.findIndex(file => file.filename === selectFile);
         if (foundIndex !== -1) {
@@ -766,16 +976,35 @@ const createApplication = (core, proc) => {
     },
 
     mountview: listView.actions({
-      select: ({data}) => win.emit('filemanager:navigate', {path: data.root})
+      select: async ({data}) => {
+        await updateState(state);
+        state.capability = await getMountPointCapability(core, data.root);
+        win.emit('filemanager:navigate', {path: data.root});
+      }
     }),
 
     fileview: listView.actions({
       select: ({data}) => win.emit('filemanager:select', data),
-      activate: ({data}) => win.emit(`filemanager:${data.isFile ? 'open' : 'navigate'}`, data),
+      activate: async ({data}) => {
+        data.isDirectory ? await updateState(state) : null;
+        win.emit(`filemanager:${data.isFile ? 'open' : 'navigate'}`, data);
+      },
       contextmenu: args => win.emit('filemanager:contextmenu', args),
       created: ({el, data}) => {
         if (data.isFile) {
           draggable(el, {data});
+        }
+      },
+      scroll: (ev) => {
+        if (state.capability.pagination) {
+          if (state.fetchAllPages) {
+            return;
+          }
+          const el = ev.target;
+          const hitBottom = (el.scrollTop + el.offsetHeight) >= el.scrollHeight;
+          if(hitBottom) {
+            win.emit('filemanager:navigate');
+          }
         }
       }
     })
@@ -791,16 +1020,26 @@ const createApplication = (core, proc) => {
 /**
  * Creates a new FileManager window
  */
-const createWindow = (core, proc) => {
+const createWindow = async (core, proc) => {
   let wired;
-  const state = {currentFile: undefined, currentPath: undefined};
+  const state = {
+    currentFile: undefined,
+    currentPath: undefined,
+    currentList: [],
+    currentPage:0,
+    fetchAllPages: false,
+    currentLastItem:'',
+    capability:{},
+    totalCount:0,
+    totalSize:0
+  };
   const {homePath, initialPath} = createInitialPaths(core, proc);
 
   const title = core.make('osjs/locale').translatableFlat(proc.metadata.title);
   const win = proc.createWindow(createWindowOptions(core, proc, title));
-  const render = createApplication(core, proc);
+  const render = createApplication(core, proc, state);
   const dialog = dialogFactory(core, proc, win);
-  const createMenu = menuFactory(core, proc, win);
+  const createMenu = menuFactory(core, proc, win, state);
   const vfs = vfsActionFactory(core, proc, win, dialog, state);
   const clipboard = clipboardActionFactory(core, state, vfs);
 
@@ -908,7 +1147,7 @@ const createProcess = (core, args, options, metadata) => {
       return;
     }
 
-    const currentPath = String(proc.args.path.path).replace(/\/$/, '');
+    const currentPath = proc.args.path ? String(proc.args.path.path).replace(/\/$/, '') : null;
     const watchPath = String(args.path).replace(/\/$/, '');
     if (currentPath === watchPath) {
       win.emit('filemanager:refresh');
@@ -922,3 +1161,5 @@ const createProcess = (core, args, options, metadata) => {
 };
 
 osjs.register(applicationName, createProcess);
+
+
