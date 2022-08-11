@@ -370,7 +370,7 @@ const vfsActionFactory = (core, proc, win, dialog, state) => {
       .catch(error => dialog('error', error, __('MSG_UPLOAD_ERROR')));
   });
 
-  const paste = (move, currentPath) => ({item, callback}) => {
+  const paste = (move, currentPath) => ({items, callback}) => {
     const promises = items.map(item => {
       const dest = {
         path: pathJoin(currentPath.path, item.filename)
@@ -468,7 +468,7 @@ const dialogFactory = (core, proc, win) => {
     })));
 
   const deleteDialog = (action, files) => dialog('confirm', {
-    message: __('DIALOG_DELETE_MESSAGE', file.filename),
+    message: __('DIALOG_DELETE_MESSAGE', files.length),
   }, usingPositiveButton(() => {
     action(
       () => Promise.all(
