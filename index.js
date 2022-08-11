@@ -141,11 +141,18 @@ const formatStatusMessage = (core, files) => {
 
   return (path, files) => {
     const directoryCount = getDirectoryCount(files);
-	  const fileCount = getFileCount(files);
-	  const totalSize = getTotalSize(files);
+    const fileCount = getFileCount(files);
+    const totalSize = getTotalSize(files);
+    const directoryCountMessage = `${directoryCount} ${__(directoryCount === 1 ? 'SINGLE_DIR' : 'MULTI_DIR')}`;
+    const fileCountMessage = `${fileCount} ${__(fileCount === 1 ? 'SINGLE_FILE' : 'MULTI_FILE')}`;
 
-    // TODO: Copy over new label messages with translation
-    return __('LBL_STATUS', directoryCount, fileCount, totalSize);
+    if (directoryCount > 0 && fileCount > 0) {
+      return __('LBL_DIR_AND_FILE_STATUS', directoryCountMessage, fileCountMessage, totalSize);
+    } else if (directoryCount > 0) {
+      return __('LBL_DIR_OR_FILE_STATUS', directoryCountMessage, totalSize);
+    } else {
+      return __('LBL_DIR_OR_FILE_STATUS', fileCountMessage, totalSize);
+    }
   };
 };
 
