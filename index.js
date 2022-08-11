@@ -126,11 +126,11 @@ const createInitialPaths = (core, proc) => {
 };
 
 const getDirectoryCount = files =>
-	files.filter(file => file.isDirectory).length;
+  files.filter(file => file.isDirectory).length;
 const getFileCount = files =>
-	files.filter(file => !file.isDirectory).length;
+  files.filter(file => !file.isDirectory).length;
 const getTotalSize = files =>
-	files.reduce((total, file) => total + (file.size || 0), 0);
+  files.reduce((total, file) => total + (file.size || 0), 0);
 
 /**
  * Formats directory status message
@@ -547,17 +547,17 @@ const menuFactory = (core, proc, win) => {
     const item = items[items.length - 1];
 
     if (items.length === 1 && item && isSpecialFile(item.filename)) {
-			return [{
+      return [{
         label: _('LBL_GO'),
         onclick: () => emitter('filemanager:navigate'),
-			}];
-		}
+      }];
+    }
 
     const canDownload = items.some(
-			item => !item.isDirectory && !isSpecialFile(item.filename)
-		);
-		const hasValidFile = items.some(item => !isSpecialFile(item.filename));
-		const isDirectory = items.length === 1 && item.isDirectory;
+      item => !item.isDirectory && !isSpecialFile(item.filename)
+    );
+    const hasValidFile = items.some(item => !isSpecialFile(item.filename));
+    const isDirectory = items.length === 1 && item.isDirectory;
 
     const openMenu = isDirectory ? [{
       label: _('LBL_GO'),
@@ -740,7 +740,7 @@ const createApplication = (core, proc) => {
     fileview: listView.state({
       columns: [],
       multiselect: true,
-			previousSelectedIndex: 0
+      previousSelectedIndex: 0
     })
   };
 
@@ -807,9 +807,9 @@ const createApplication = (core, proc) => {
     fileview: listView.actions({
       select: ({data}) => win.emit('filemanager:select', data),
       activate: ({data}) =>
-				data.forEach(item =>
-					win.emit(`filemanager:${item.isFile ? 'open' : 'navigate'}`, item)
-				),
+        data.forEach(item =>
+          win.emit(`filemanager:${item.isFile ? 'open' : 'navigate'}`, item)
+        ),
       contextmenu: args => win.emit('filemanager:contextmenu', args),
       created: ({el, data}) => {
         if (data.isFile) {
@@ -856,23 +856,23 @@ const createWindow = (core, proc) => {
   const onReaddirRender = args => wired.setList(args);
   const onRefresh = (...args) => vfs.refresh(...args);
   const onOpen = files => {
-		if (!Array.isArray(files)) {
+    if (!Array.isArray(files)) {
       files = [files];
     }
 
-		return files.forEach(
-			file => core.open(file, {useDefault: true})
-		);
-	};
-	const onOpenWith = files => {
-		if (!Array.isArray(files)) {
+    return files.forEach(
+      file => core.open(file, {useDefault: true})
+    );
+  };
+  const onOpenWith = files => {
+    if (!Array.isArray(files)) {
       files = [files];
     }
 
-		return files.forEach(
-			file => core.open(file, {useDefault: true, forceDialog: true})
-		);
-	};
+    return files.forEach(
+      file => core.open(file, {useDefault: true, forceDialog: true})
+    );
+  };
   const onHistoryPush = file => wired.history.push(file);
   const onHistoryClear = () => wired.history.clear();
   const onMenu = (props, args) => createMenu(props, args || state.currentFile);
