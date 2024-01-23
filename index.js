@@ -284,7 +284,7 @@ const vfsActionFactory = (core, proc, win, dialog, state) => {
   };
 
   const writeRelative = f => {
-    const d = dialog('progress', f);
+    const d = dialog('progress', f.name);
 
     return vfs.writefile({
       path: pathJoin(state.currentPath.path, f.name)
@@ -300,10 +300,76 @@ const vfsActionFactory = (core, proc, win, dialog, state) => {
     });
   };
 
-  const uploadBrowserFiles = (files) => {
-    Promise.all(files.map(writeRelative))
-      .then(() => refresh(files[0].name)) // FIXME: Select all ?
-      .catch(error => dialog('error', error, __('MSG_UPLOAD_ERROR')));
+  const uploadBrowserFiles = async items => {
+    const uploadList = [];
+    let totalSize = 0;
+    let filename;
+    try {
+      const checkFile = (file, dirPath) => {
+        uploadList.push({ dirPath, file });
+        totalSize += file.size;
+        if (filename == null) {
+          filename = file.name;
+        } else if (filename) {
+          filename = '';
+        }
+      };
+      const checkDirectory = async (directory, dirPath) => {
+        uploadList.push({ dirPath });
+        const reader = directory.createReader();
+        await new Promise(resolve => {
+          reader.readEntries(async entries => {
+            for (let entry of entries) {
+              if (entry.isFile) {
+                await new Promise((resolve, reject) => {
+                  entry.file(file => {
+                    checkFile(file, dirPath);
+                    resolve();
+                  }, reject);
+                });
+              } else if (entry.isDirectory) {
+                await checkDirectory(entry, dirPath + '/' + entry.name);
+              }
+            }
+            resolve();
+          });
+        });
+      }
+      for (let item of items) {
+        const entry = item.webkitGetAsEntry();
+        if (entry.isFile) {
+          checkFile(item.getAsFile(), '');
+        } else if (entry.isDirectory) {
+          await checkDirectory(entry, entry.name);
+        }
+      };
+    } catch (error) {
+      console.warn(error);
+    }
+
+    const d = dialog('progress', filename || 'multiple files');
+    try {
+      let uploaded = 0;
+      for (let { dirPath, file } of uploadList) {
+        if (file) {
+          await vfs.writefile({
+            path: pathJoin(state.currentPath.path, dirPath, file.name)
+          }, file, {
+            pid: proc.pid,
+            onProgress: (ev, progress) => {
+              d.setProgress(Math.round((uploaded + progress * file.size / 100) * 100 / totalSize));
+            }
+          });
+          uploaded += file.size;
+        } else {
+          await vfs.mkdir({path: pathJoin(state.currentPath.path, dirPath)}, {pid: proc.pid});
+        }
+      }
+      refresh(items[0].name); // FIXME: Select all ?
+    } catch (error) {
+      dialog('error', error, __('MSG_UPLOAD_ERROR'));
+    }
+    d.destroy();
   };
 
   const uploadVirtualFile = (data) => {
@@ -449,8 +515,8 @@ const dialogFactory = (core, proc, win) => {
     action(() => vfs.unlink(file, {pid: proc.pid}), true, __('MSG_DELETE_ERROR'));
   }));
 
-  const progressDialog = (file) => dialog('progress', {
-    message: __('DIALOG_PROGRESS_MESSAGE', file.name),
+  const progressDialog = name => dialog('progress', {
+    message: __('DIALOG_PROGRESS_MESSAGE', name),
     buttons: []
   }, () => {}, false);
 
