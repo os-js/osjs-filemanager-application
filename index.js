@@ -66,7 +66,8 @@ const createWindowOptions = (core, proc, title) => ({
   attributes: {
     mediaQueries: {
       small: 'screen and (max-width: 400px)'
-    }
+    },
+    droppableDataTransferProperty: 'items',
   },
   dimension: Object.assign({
     width: 400,
@@ -306,16 +307,16 @@ const vfsActionFactory = (core, proc, win, dialog, state) => {
     let filename;
     try {
       const checkFile = (file, dirPath) => {
-        uploadList.push({ dirPath, file });
+        uploadList.push({dirPath, file});
         totalSize += file.size;
-        if (filename == null) {
+        if (filename === undefined) {
           filename = file.name;
         } else if (filename) {
           filename = '';
         }
       };
       const checkDirectory = async (directory, dirPath) => {
-        uploadList.push({ dirPath });
+        uploadList.push({dirPath});
         const reader = directory.createReader();
         await new Promise(resolve => {
           reader.readEntries(async entries => {
@@ -334,7 +335,7 @@ const vfsActionFactory = (core, proc, win, dialog, state) => {
             resolve();
           });
         });
-      }
+      };
       for (let item of items) {
         const entry = item.webkitGetAsEntry();
         if (entry.isFile) {
@@ -342,7 +343,7 @@ const vfsActionFactory = (core, proc, win, dialog, state) => {
         } else if (entry.isDirectory) {
           await checkDirectory(entry, entry.name);
         }
-      };
+      }
     } catch (error) {
       console.warn(error);
     }
@@ -350,7 +351,7 @@ const vfsActionFactory = (core, proc, win, dialog, state) => {
     const d = dialog('progress', filename || 'multiple files');
     try {
       let uploaded = 0;
-      for (let { dirPath, file } of uploadList) {
+      for (let {dirPath, file} of uploadList) {
         if (file) {
           await vfs.writefile({
             path: pathJoin(state.currentPath.path, dirPath, file.name)
