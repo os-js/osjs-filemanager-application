@@ -67,7 +67,7 @@ const createWindowOptions = (core, proc, title) => ({
     mediaQueries: {
       small: 'screen and (max-width: 400px)'
     },
-    droppableDataTransferProperty: 'items',
+    droppable: {dataTransferProperty: 'items'},
   },
   dimension: Object.assign({
     width: 400,
