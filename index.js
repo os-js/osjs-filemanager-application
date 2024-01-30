@@ -48,6 +48,12 @@ import {
   listView
 } from '@osjs/gui';
 
+
+/**
+ * flag indicating whether uploading folders is supported
+ */
+const supportsUploadingFolders = !!(window.DataTransferItem && DataTransferItem.prototype.webkitGetAsEntry);
+
 /**
  * Creates default settings
  */
@@ -67,7 +73,7 @@ const createWindowOptions = (core, proc, title) => ({
     mediaQueries: {
       small: 'screen and (max-width: 400px)'
     },
-    droppable: {dataTransferProperty: 'items'},
+    droppable: {dataTransferProperty: supportsUploadingFolders ? 'items' : 'files'},
   },
   dimension: Object.assign({
     width: 400,
@@ -302,6 +308,16 @@ const vfsActionFactory = (core, proc, win, dialog, state) => {
   };
 
   const uploadBrowserFiles = async items => {
+    if (!supportsUploadingFolders) {
+      try {
+        const files = items;
+        await Promise.all(files.map(writeRelative));
+        refresh(files[0].name); // FIXME: Select all ?
+      } catch(error) {
+        dialog('error', error, __('MSG_UPLOAD_ERROR'));
+      }
+      return;
+    }
     const uploadList = [];
     let totalSize = 0;
     let filename;
