@@ -104,9 +104,11 @@ const usingPositiveButton = cb => (btn, value) => {
 /**
  * Triggers a browser upload
  */
-const triggerBrowserUpload = (cb) => {
+const triggerBrowserUpload = (cb, dir = false) => {
   const field = document.createElement('input');
   field.type = 'file';
+  field.multiple = true;
+  field.webkitdirectory = dir;
   field.onchange = () => {
     if (field.files.length > 0) {
       cb(field.files);
@@ -307,67 +309,13 @@ const vfsActionFactory = (core, proc, win, dialog, state) => {
     });
   };
 
-  const uploadBrowserFiles = async items => {
-    if (!supportsUploadingFolders) {
-      try {
-        const files = items;
-        await Promise.all(files.map(writeRelative));
-        refresh(files[0].name); // FIXME: Select all ?
-      } catch(error) {
-        dialog('error', error, __('MSG_UPLOAD_ERROR'));
-      }
-      return;
-    }
-    const uploadList = [];
-    let totalSize = 0;
-    let filename;
-    try {
-      const checkFile = (file, dirPath) => {
-        uploadList.push({dirPath, file});
-        totalSize += file.size;
-        if (filename === undefined) {
-          filename = file.name;
-        } else if (filename) {
-          filename = '';
-        }
-      };
-      const checkDirectory = async (directory, dirPath) => {
-        uploadList.push({dirPath});
-        const reader = directory.createReader();
-        await new Promise(resolve => {
-          reader.readEntries(async entries => {
-            for (let entry of entries) {
-              if (entry.isFile) {
-                await new Promise((resolve, reject) => {
-                  entry.file(file => {
-                    checkFile(file, dirPath);
-                    resolve();
-                  }, reject);
-                });
-              } else if (entry.isDirectory) {
-                await checkDirectory(entry, dirPath + '/' + entry.name);
-              }
-            }
-            resolve();
-          });
-        });
-      };
-      for (let item of items) {
-        const entry = item.webkitGetAsEntry();
-        if (entry.isFile) {
-          checkFile(item.getAsFile(), '');
-        } else if (entry.isDirectory) {
-          await checkDirectory(entry, entry.name);
-        }
-      }
-    } catch (error) {
-      console.warn(error);
-    }
-
-    const d = dialog('progress', filename || 'multiple files');
+  const uploadFileAndFolderList = async list => {
+    const files = list.filter(({file}) => file);
+    const totalSize = files.reduce((sum, {size}) => sum + size);
+    const d = dialog('progress', files.length === 1 ? files[0].name : 'multiple files');
     try {
       let uploaded = 0;
-      for (let {dirPath, file} of uploadList) {
+      for (let {dirPath, file} of list) {
         if (file) {
           await vfs.writefile({
             path: pathJoin(state.currentPath.path, dirPath, file.name)
@@ -382,11 +330,61 @@ const vfsActionFactory = (core, proc, win, dialog, state) => {
           await vfs.mkdir({path: pathJoin(state.currentPath.path, dirPath)}, {pid: proc.pid});
         }
       }
-      refresh(items[0].name); // FIXME: Select all ?
     } catch (error) {
       dialog('error', error, __('MSG_UPLOAD_ERROR'));
     }
     d.destroy();
+  }
+
+  const uploadBrowserFiles = async items => {
+    if (!supportsUploadingFolders) {
+      try {
+        const files = items;
+        await Promise.all(files.map(writeRelative));
+        refresh(files[0].name); // FIXME: Select all ?
+      } catch(error) {
+        dialog('error', error, __('MSG_UPLOAD_ERROR'));
+      }
+      return;
+    }
+
+    const uploadList = [];
+    try {
+      const checkDirectory = async (directory, dirPath) => {
+        uploadList.push({dirPath});
+        const reader = directory.createReader();
+        await new Promise(resolve => {
+          reader.readEntries(async entries => {
+            for (let entry of entries) {
+              if (entry.isFile) {
+                await new Promise((resolve, reject) => {
+                  entry.file(file => {
+                    uploadList.push({dirPath, file});
+                    resolve();
+                  }, reject);
+                });
+              } else if (entry.isDirectory) {
+                await checkDirectory(entry, dirPath + '/' + entry.name);
+              }
+            }
+            resolve();
+          });
+        });
+      };
+      for (let item of items) {
+        const entry = item.webkitGetAsEntry();
+        if (entry.isFile) {
+          const file = item.getAsFile();
+          uploadList.push({dirPath: '', file});
+        } else if (entry.isDirectory) {
+          await checkDirectory(entry, entry.name);
+        }
+      }
+    } catch (error) {
+      console.warn(error);
+    }
+    await uploadFileAndFolderList(uploadList);
+    refresh(items[0].name); // FIXME: Select all ?
   };
 
   const uploadVirtualFile = (data) => {
@@ -441,6 +439,27 @@ const vfsActionFactory = (core, proc, win, dialog, state) => {
       .catch(error => dialog('error', error, __('MSG_UPLOAD_ERROR')));
   });
 
+  const uploadDir = () => triggerBrowserUpload(async files => {
+    const filesArray = [];
+    const foldersSet = new Set();
+    for (let file of files) {
+      const path = file.webkitRelativePath;
+      const folders = path.split('/').slice(0, -1);
+      let dirPath = '';
+      folders.forEach(folder => {
+        if (dirPath) {
+          dirPath += '/';
+        }
+        dirPath += folder;
+        foldersSet.add(dirPath);
+      });
+      filesArray.push({file, dirPath});
+    }
+    const allFilesAndFolders = Array.from(foldersSet).map(dirPath => ({dirPath})).concat(filesArray);
+    await uploadFileAndFolderList(allFilesAndFolders);
+    refresh(files[0].name); // FIXME: Select all ?
+  }, true);
+
   const paste = (move, currentPath) => ({item, callback}) => {
     const dest = {path: pathJoin(currentPath.path, item.filename)};
 
@@ -462,6 +481,7 @@ const vfsActionFactory = (core, proc, win, dialog, state) => {
   return {
     download: file => vfs.download(file),
     upload,
+    uploadDir,
     refresh,
     action,
     drop,
@@ -591,6 +611,7 @@ const menuFactory = (core, proc, win) => {
 
   const createFileMenu = () => ([
     {label: _('LBL_UPLOAD'), onclick: () => win.emit('filemanager:menu:upload')},
+    {label: __('LBL_UPLOAD_DIR'), onclick: () => win.emit('filemanager:menu:uploaddir')},
     {label: _('LBL_MKDIR'), onclick: () => win.emit('filemanager:menu:mkdir')},
     {label: _('LBL_QUIT'), onclick: () => win.emit('filemanager:menu:quit')}
   ]);
@@ -906,6 +927,7 @@ const createWindow = (core, proc) => {
   const onHistoryClear = () => wired.history.clear();
   const onMenu = (props, args) => createMenu(props, args || state.currentFile);
   const onMenuUpload = (...args) => vfs.upload(...args);
+  const onMenuUploadDir = (...args) => vfs.uploadDir(...args);
   const onMenuMkdir = () => dialog('mkdir', vfs.action, state.currentPath);
   const onMenuQuit = () => proc.destroy();
   const onMenuRefresh = () => vfs.refresh();
@@ -940,6 +962,7 @@ const createWindow = (core, proc) => {
     .on('filemanager:historyPush', onHistoryPush)
     .on('filemanager:historyClear', onHistoryClear)
     .on('filemanager:menu:upload', onMenuUpload)
+    .on('filemanager:menu:uploaddir', onMenuUploadDir)
     .on('filemanager:menu:mkdir', onMenuMkdir)
     .on('filemanager:menu:quit', onMenuQuit)
     .on('filemanager:menu:refresh', onMenuRefresh)
