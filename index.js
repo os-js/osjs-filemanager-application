@@ -313,7 +313,7 @@ const vfsActionFactory = (core, proc, win, dialog, state) => {
       .catch(error => dialog('error', error, __('MSG_UPLOAD_ERROR')));
   };
 
-  const getUploadData = async (items) => {
+  const getUploadList = async (items) => {
     /*
       type: [{dirPath: string, file?: any}]
       Directories do not have the `file` property.
@@ -321,20 +321,6 @@ const vfsActionFactory = (core, proc, win, dialog, state) => {
       Files store their containing folders path as their `dirPath`.
     */
     const uploadList = [];
-
-    let totalSize = 0;
-    let title;
-
-    const checkFile = (file, dirPath) => {
-      uploadList.push({dirPath, file});
-      totalSize += file.size;
-      if (title === undefined) {
-        title = file.name;
-      } else if (title) {
-        // we've got multiple titles; reset the value
-        title = '';
-      }
-    };
 
     const getDirectoryEntries = (directory) => {
       const reader = directory.createReader();
@@ -361,7 +347,7 @@ const vfsActionFactory = (core, proc, win, dialog, state) => {
       for (let entry of entries) {
         if (entry.isFile) {
           const file = await getFileFromEntry(entry);
-          checkFile(file, dirPath);
+          uploadList.push({dirPath, file});
         } else if (entry.isDirectory) {
           const subDirPath = dirPath + '/' + entry.name;
           await checkDirectory(entry, subDirPath);
@@ -375,7 +361,7 @@ const vfsActionFactory = (core, proc, win, dialog, state) => {
         if (entry.isFile) {
           const file = item.getAsFile();
           const dirPath = '';
-          checkFile(file, dirPath);
+          uploadList.push({dirPath, file});
         } else if (entry.isDirectory) {
           await checkDirectory(entry, entry.name);
         }
@@ -384,20 +370,16 @@ const vfsActionFactory = (core, proc, win, dialog, state) => {
       console.warn(error);
     }
 
-    return { uploadList, totalSize, title };
+    return uploadList;
   }
 
-  const uploadBrowserFiles = async (items) => {
-    if (!supportsUploadingFolders) {
-      return legacyUploadBrowserFiles(items);
-    }
-
-    const { uploadList, totalSize, title } = await getUploadData(items);
-
-    const d = dialog('progress', title || 'multiple files');
+  const uploadFileAndFolderList = async (list) => {
+    const files = list.map(({file}) => file).filter((file) => file);
+    const totalSize = files.reduce((sum, {size}) => sum + size, 0);
+    const d = dialog('progress', files.length === 1 ? files[0].name : 'multiple files');
     try {
       let uploaded = 0;
-      for (let {dirPath, file} of uploadList) {
+      for (let {dirPath, file} of list) {
         if (file) {
           // upload file
           await vfs.writefile({
@@ -414,11 +396,20 @@ const vfsActionFactory = (core, proc, win, dialog, state) => {
           await vfs.mkdir({path: pathJoin(state.currentPath.path, dirPath)}, {pid: proc.pid});
         }
       }
-      refresh(items[0].name); // FIXME: Select all ?
     } catch (error) {
       dialog('error', error, __('MSG_UPLOAD_ERROR'));
     }
     d.destroy();
+  }
+
+  const uploadBrowserFiles = async (items) => {
+    if (!supportsUploadingFolders) {
+      return legacyUploadBrowserFiles(items);
+    }
+
+    const uploadList = await getUploadList(items);
+    await uploadFileAndFolderList(uploadList);
+    refresh(items[0].name); // FIXME: Select all ?
   };
 
   const uploadVirtualFile = (data) => {
