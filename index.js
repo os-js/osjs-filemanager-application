@@ -307,55 +307,75 @@ const vfsActionFactory = (core, proc, win, dialog, state) => {
     });
   };
 
-  const uploadBrowserFiles = async items => {
-    if (!supportsUploadingFolders) {
-      try {
-        const files = items;
-        await Promise.all(files.map(writeRelative));
-        refresh(files[0].name); // FIXME: Select all ?
-      } catch(error) {
-        dialog('error', error, __('MSG_UPLOAD_ERROR'));
-      }
-      return;
-    }
+  const legacyUploadBrowserFiles = (files) => {
+    Promise.all(files.map(writeRelative))
+      .then(() => refresh(files[0].name)) // FIXME: Select all ?
+      .catch(error => dialog('error', error, __('MSG_UPLOAD_ERROR')));
+  };
+
+  const getUploadData = async (items) => {
+    /*
+      type: [{dirPath: string, file?: any}]
+      Directories do not have the `file` property.
+      They only have their relative path stored in `dirPath`.
+      Files store their containing folders path as their `dirPath`.
+    */
     const uploadList = [];
+
     let totalSize = 0;
-    let filename;
-    try {
-      const checkFile = (file, dirPath) => {
-        uploadList.push({dirPath, file});
-        totalSize += file.size;
-        if (filename === undefined) {
-          filename = file.name;
-        } else if (filename) {
-          filename = '';
-        }
-      };
-      const checkDirectory = async (directory, dirPath) => {
-        uploadList.push({dirPath});
-        const reader = directory.createReader();
-        await new Promise(resolve => {
-          reader.readEntries(async entries => {
-            for (let entry of entries) {
-              if (entry.isFile) {
-                await new Promise((resolve, reject) => {
-                  entry.file(file => {
-                    checkFile(file, dirPath);
-                    resolve();
-                  }, reject);
-                });
-              } else if (entry.isDirectory) {
-                await checkDirectory(entry, dirPath + '/' + entry.name);
-              }
-            }
-            resolve();
-          });
+    let title;
+
+    const checkFile = (file, dirPath) => {
+      uploadList.push({dirPath, file});
+      totalSize += file.size;
+      if (title === undefined) {
+        title = file.name;
+      } else if (title) {
+        // we've got multiple titles; reset the value
+        title = '';
+      }
+    };
+
+    const getDirectoryEntries = (directory) => {
+      const reader = directory.createReader();
+      return new Promise(resolve => {
+        reader.readEntries(async (entries) => {
+          resolve(entries);
         });
-      };
+      });
+    };
+
+    const getFileFromEntry = (entry) => {
+      return new Promise((resolve, reject) => {
+        entry.file((file) => {
+          resolve(file);
+        }, (error) => {
+          reject(error);
+        });
+      });
+    };
+
+    const checkDirectory = async (directory, dirPath) => {
+      uploadList.push({dirPath});
+      const entries = await getDirectoryEntries(directory);
+      for (let entry of entries) {
+        if (entry.isFile) {
+          const file = await getFileFromEntry(entry);
+          checkFile(file, dirPath);
+        } else if (entry.isDirectory) {
+          const subDirPath = dirPath + '/' + entry.name;
+          await checkDirectory(entry, subDirPath);
+        }
+      }
+    };
+
+    try {
       for (let item of items) {
         const entry = item.webkitGetAsEntry();
         if (entry.isFile) {
-          checkFile(item.getAsFile(), '');
+          const file = item.getAsFile();
+          const dirPath = '';
+          checkFile(file, dirPath);
         } else if (entry.isDirectory) {
           await checkDirectory(entry, entry.name);
         }
@@ -364,11 +384,22 @@ const vfsActionFactory = (core, proc, win, dialog, state) => {
       console.warn(error);
     }
 
-    const d = dialog('progress', filename || 'multiple files');
+    return { uploadList, totalSize, title };
+  }
+
+  const uploadBrowserFiles = async (items) => {
+    if (!supportsUploadingFolders) {
+      return legacyUploadBrowserFiles(items);
+    }
+
+    const { uploadList, totalSize, title } = await getUploadData(items);
+
+    const d = dialog('progress', title || 'multiple files');
     try {
       let uploaded = 0;
       for (let {dirPath, file} of uploadList) {
         if (file) {
+          // upload file
           await vfs.writefile({
             path: pathJoin(state.currentPath.path, dirPath, file.name)
           }, file, {
@@ -379,6 +410,7 @@ const vfsActionFactory = (core, proc, win, dialog, state) => {
           });
           uploaded += file.size;
         } else {
+          // create folder
           await vfs.mkdir({path: pathJoin(state.currentPath.path, dirPath)}, {pid: proc.pid});
         }
       }
@@ -532,7 +564,7 @@ const dialogFactory = (core, proc, win) => {
     action(() => vfs.unlink(file, {pid: proc.pid}), true, __('MSG_DELETE_ERROR'));
   }));
 
-  const progressDialog = name => dialog('progress', {
+  const progressDialog = (name) => dialog('progress', {
     message: __('DIALOG_PROGRESS_MESSAGE', name),
     buttons: []
   }, () => {}, false);
