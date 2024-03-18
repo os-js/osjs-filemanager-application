@@ -371,7 +371,7 @@ const vfsActionFactory = (core, proc, win, dialog, state) => {
     }
 
     return uploadList;
-  }
+  };
 
   const uploadFileAndFolderList = async (list) => {
     const files = list.map(({file}) => file).filter((file) => file);
@@ -400,7 +400,7 @@ const vfsActionFactory = (core, proc, win, dialog, state) => {
       dialog('error', error, __('MSG_UPLOAD_ERROR'));
     }
     d.destroy();
-  }
+  };
 
   const uploadBrowserFiles = async (items) => {
     if (!supportsUploadingFolders) {
