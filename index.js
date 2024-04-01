@@ -376,15 +376,26 @@ const vfsActionFactory = (core, proc, win, dialog, state) => {
   const uploadFileAndFolderList = async (list) => {
     const files = list.map(({file}) => file).filter((file) => file);
     const totalSize = files.reduce((sum, {size}) => sum + size, 0);
-    const d = dialog('progress', files.length === 1 ? files[0].name : 'multiple files');
+    const dialogTitle = files.length === 1 ? files[0].name : 'multiple files';
+    const abortController = new AbortController();
+    let isCancelled = false;
+    const onCancel = () => {
+      isCancelled = false;
+      abortController.abort();
+    };
+    const d = dialog('progress', dialogTitle, onCancel);
     try {
       let uploaded = 0;
       for (let {dirPath, file} of list) {
+        if (isCancelled) {
+          return;
+        }
         if (file) {
           // upload file
           await vfs.writefile({
             path: pathJoin(state.currentPath.path, dirPath, file.name)
           }, file, {
+            signal: abortController.signal,
             pid: proc.pid,
             onProgress: (ev, progress) => {
               d.setProgress(Math.round((uploaded + progress * file.size / 100) * 100 / totalSize));
@@ -555,10 +566,10 @@ const dialogFactory = (core, proc, win) => {
     action(() => vfs.unlink(file, {pid: proc.pid}), true, __('MSG_DELETE_ERROR'));
   }));
 
-  const progressDialog = (name) => dialog('progress', {
+  const progressDialog = (name, cb = (() => {})) => dialog('progress', {
     message: __('DIALOG_PROGRESS_MESSAGE', name),
     buttons: []
-  }, () => {}, false);
+  }, cb, false);
 
   const errorDialog = (error, message) => dialog('alert', {
     type: 'error',
