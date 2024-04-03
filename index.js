@@ -568,7 +568,7 @@ const dialogFactory = (core, proc, win) => {
 
   const progressDialog = (name, cb = (() => {})) => dialog('progress', {
     message: __('DIALOG_PROGRESS_MESSAGE', name),
-    buttons: []
+    buttons: ['Cancel']
   }, cb, false);
 
   const errorDialog = (error, message) => dialog('alert', {
