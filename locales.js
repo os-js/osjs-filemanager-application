@@ -1,6 +1,7 @@
 export const en_EN = {
   LBL_SHOW_HIDDEN_FILES: 'Show hidden files',
   LBL_MINIMALISTIC: 'Minimalistic',
+  LBL_UPLOAD_DIR: 'Upload Directory',
   LBL_OPEN_WITH: 'Open with...',
   LBL_SHOW_DATE: 'Show date column',
   LBL_STATUS: '{0} directories, {1} files, {2} bytes total',

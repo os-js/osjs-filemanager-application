@@ -48,6 +48,14 @@ import {
   listView
 } from '@osjs/gui';
 
+
+/**
+ * flag indicating whether uploading folders is supported
+ */
+const supportsUploadingFolders = core =>
+  core.config('filemanager.disableMultiUpload', false) !== true
+  && !!(window.DataTransferItem && DataTransferItem.prototype.webkitGetAsEntry);
+
 /**
  * Creates default settings
  */
@@ -66,7 +74,8 @@ const createWindowOptions = (core, proc, title) => ({
   attributes: {
     mediaQueries: {
       small: 'screen and (max-width: 400px)'
-    }
+    },
+    droppable: {dataTransferProperty: supportsUploadingFolders(core) ? 'items' : 'files'},
   },
   dimension: Object.assign({
     width: 400,
@@ -97,9 +106,11 @@ const usingPositiveButton = cb => (btn, value) => {
 /**
  * Triggers a browser upload
  */
-const triggerBrowserUpload = (cb) => {
+const triggerBrowserUpload = (cb, dir = false) => {
   const field = document.createElement('input');
   field.type = 'file';
+  field.multiple = true;
+  field.webkitdirectory = dir;
   field.onchange = () => {
     if (field.files.length > 0) {
       cb(field.files);
@@ -284,7 +295,7 @@ const vfsActionFactory = (core, proc, win, dialog, state) => {
   };
 
   const writeRelative = f => {
-    const d = dialog('progress', f);
+    const d = dialog('progress', f.name);
 
     return vfs.writefile({
       path: pathJoin(state.currentPath.path, f.name)
@@ -300,10 +311,120 @@ const vfsActionFactory = (core, proc, win, dialog, state) => {
     });
   };
 
-  const uploadBrowserFiles = (files) => {
+  const legacyUploadBrowserFiles = (files) => {
     Promise.all(files.map(writeRelative))
       .then(() => refresh(files[0].name)) // FIXME: Select all ?
       .catch(error => dialog('error', error, __('MSG_UPLOAD_ERROR')));
+  };
+
+  const getUploadList = async (items) => {
+    /*
+      type: [{dirPath: string, file?: any}]
+      Directories do not have the `file` property.
+      They only have their relative path stored in `dirPath`.
+      Files store their containing folders path as their `dirPath`.
+    */
+    const uploadList = [];
+
+    const getDirectoryEntries = (directory) => {
+      const reader = directory.createReader();
+      return new Promise(resolve => {
+        reader.readEntries(async (entries) => {
+          resolve(entries);
+        });
+      });
+    };
+
+    const getFileFromEntry = (entry) => {
+      return new Promise((resolve, reject) => {
+        entry.file((file) => {
+          resolve(file);
+        }, (error) => {
+          reject(error);
+        });
+      });
+    };
+
+    const checkDirectory = async (directory, dirPath) => {
+      uploadList.push({dirPath});
+      const entries = await getDirectoryEntries(directory);
+      for (let entry of entries) {
+        if (entry.isFile) {
+          const file = await getFileFromEntry(entry);
+          uploadList.push({dirPath, file});
+        } else if (entry.isDirectory) {
+          const subDirPath = dirPath + '/' + entry.name;
+          await checkDirectory(entry, subDirPath);
+        }
+      }
+    };
+
+    try {
+      for (let item of items) {
+        const entry = item.webkitGetAsEntry();
+        if (entry.isFile) {
+          const file = item.getAsFile();
+          const dirPath = '';
+          uploadList.push({dirPath, file});
+        } else if (entry.isDirectory) {
+          await checkDirectory(entry, entry.name);
+        }
+      }
+    } catch (error) {
+      console.warn(error);
+    }
+
+    return uploadList;
+  };
+
+  const uploadFileAndFolderList = async (list) => {
+    const files = list.map(({file}) => file).filter((file) => file);
+    const totalSize = files.reduce((sum, {size}) => sum + size, 0);
+    const dialogTitle = files.length === 1 ? files[0].name : 'multiple files';
+    const abortController = new AbortController();
+    let isCancelled = false;
+    const onCancel = () => {
+      isCancelled = false;
+      abortController.abort();
+    };
+    const d = dialog('progress', dialogTitle, onCancel);
+    try {
+      let uploaded = 0;
+      for (let {dirPath, file} of list) {
+        if (isCancelled) {
+          return;
+        }
+        if (file) {
+          // upload file
+          await vfs.writefile({
+            path: pathJoin(state.currentPath.path, dirPath, file.name)
+          }, file, {
+            signal: abortController.signal,
+            pid: proc.pid,
+            onProgress: (ev, progress) => {
+              d.setProgress(Math.round((uploaded + progress * file.size / 100) * 100 / totalSize));
+            }
+          });
+          uploaded += file.size;
+        } else {
+          // create folder
+          await vfs.mkdir({path: pathJoin(state.currentPath.path, dirPath)}, {pid: proc.pid});
+        }
+      }
+    } catch (error) {
+      dialog('error', error, __('MSG_UPLOAD_ERROR'));
+    }
+    d.destroy();
+  };
+
+  const uploadBrowserFiles = async (items) => {
+    if (!supportsUploadingFolders(core)) {
+      return legacyUploadBrowserFiles(items);
+    }
+
+    const uploadList = await getUploadList(items);
+    await uploadFileAndFolderList(uploadList);
+    refresh(items[0].name); // FIXME: Select all ?
   };
 
   const uploadVirtualFile = (data) => {
@@ -358,6 +479,27 @@ const vfsActionFactory = (core, proc, win, dialog, state) => {
       .catch(error => dialog('error', error, __('MSG_UPLOAD_ERROR')));
   });
 
+  const uploadDir = () => triggerBrowserUpload(async files => {
+    const filesArray = [];
+    const foldersSet = new Set();
+    for (let file of files) {
+      const path = file.webkitRelativePath;
+      const folders = path.split('/').slice(0, -1);
+      let dirPath = '';
+      folders.forEach(folder => {
+        if (dirPath) {
+          dirPath += '/';
+        }
+        dirPath += folder;
+        foldersSet.add(dirPath);
+      });
+      filesArray.push({file, dirPath});
+    }
+    const allFilesAndFolders = Array.from(foldersSet).map(dirPath => ({dirPath})).concat(filesArray);
+    await uploadFileAndFolderList(allFilesAndFolders);
+    refresh(files[0].name); // FIXME: Select all ?
+  }, true);
+
   const paste = (move, currentPath) => ({item, callback}) => {
     const dest = {path: pathJoin(currentPath.path, item.filename)};
 
@@ -379,6 +521,7 @@ const vfsActionFactory = (core, proc, win, dialog, state) => {
   return {
     download: file => vfs.download(file),
     upload,
+    uploadDir,
     refresh,
     action,
     drop,
@@ -449,10 +592,10 @@ const dialogFactory = (core, proc, win) => {
     action(() => vfs.unlink(file, {pid: proc.pid}), true, __('MSG_DELETE_ERROR'));
   }));
 
-  const progressDialog = (file) => dialog('progress', {
-    message: __('DIALOG_PROGRESS_MESSAGE', file.name),
-    buttons: []
-  }, () => {}, false);
+  const progressDialog = (name, cb = (() => {})) => dialog('progress', {
+    message: __('DIALOG_PROGRESS_MESSAGE', name),
+    buttons: ['Cancel']
+  }, cb, false);
 
   const errorDialog = (error, message) => dialog('alert', {
     type: 'error',
@@ -508,6 +651,7 @@ const menuFactory = (core, proc, win) => {
 
   const createFileMenu = () => ([
     {label: _('LBL_UPLOAD'), onclick: () => win.emit('filemanager:menu:upload')},
+    {label: __('LBL_UPLOAD_DIR'), onclick: () => win.emit('filemanager:menu:uploaddir')},
     {label: _('LBL_MKDIR'), onclick: () => win.emit('filemanager:menu:mkdir')},
     {label: _('LBL_QUIT'), onclick: () => win.emit('filemanager:menu:quit')}
   ]);
@@ -823,6 +967,7 @@ const createWindow = (core, proc) => {
   const onHistoryClear = () => wired.history.clear();
   const onMenu = (props, args) => createMenu(props, args || state.currentFile);
   const onMenuUpload = (...args) => vfs.upload(...args);
+  const onMenuUploadDir = (...args) => vfs.uploadDir(...args);
   const onMenuMkdir = () => dialog('mkdir', vfs.action, state.currentPath);
   const onMenuQuit = () => proc.destroy();
   const onMenuRefresh = () => vfs.refresh();
@@ -857,6 +1002,7 @@ const createWindow = (core, proc) => {
     .on('filemanager:historyPush', onHistoryPush)
     .on('filemanager:historyClear', onHistoryClear)
     .on('filemanager:menu:upload', onMenuUpload)
+    .on('filemanager:menu:uploaddir', onMenuUploadDir)
     .on('filemanager:menu:mkdir', onMenuMkdir)
     .on('filemanager:menu:quit', onMenuQuit)
     .on('filemanager:menu:refresh', onMenuRefresh)
