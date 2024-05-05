@@ -52,7 +52,9 @@ import {
 /**
  * flag indicating whether uploading folders is supported
  */
-const supportsUploadingFolders = !!(window.DataTransferItem && DataTransferItem.prototype.webkitGetAsEntry);
+const supportsUploadingFolders = core =>
+  core.config('filemanager.disableMultiUpload', false) !== true
+  && !!(window.DataTransferItem && DataTransferItem.prototype.webkitGetAsEntry);
 
 /**
  * Creates default settings
@@ -73,7 +75,7 @@ const createWindowOptions = (core, proc, title) => ({
     mediaQueries: {
       small: 'screen and (max-width: 400px)'
     },
-    droppable: {dataTransferProperty: supportsUploadingFolders ? 'items' : 'files'},
+    droppable: {dataTransferProperty: supportsUploadingFolders(core) ? 'items' : 'files'},
   },
   dimension: Object.assign({
     width: 400,
@@ -414,7 +416,7 @@ const vfsActionFactory = (core, proc, win, dialog, state) => {
   };
 
   const uploadBrowserFiles = async (items) => {
-    if (!supportsUploadingFolders) {
+    if (!supportsUploadingFolders(core)) {
       return legacyUploadBrowserFiles(items);
     }
 
